@@ -353,8 +353,8 @@
                          <section class="mb-8 p-6 bg-slate-50 border border-slate-200 rounded-lg">
                             <h3 class="font-bold text-lg text-slate-800 mb-4">API Podaci za Meč</h3>
                             <button type="button" id="toggle-api-data-btn" class="action-btn secondary !py-2 !px-4 !text-sm mb-4">Prikaži/Sakrij API Podatke</button>
-                            <div id="api-data-display" class="hidden bg-slate-800 text-white p-4 rounded-lg overflow-x-auto">
-                                <pre class="text-xs"></pre>
+                            <div id="api-data-display" class="hidden bg-white text-slate-700 p-4 rounded-lg border border-slate-200">
+                                <pre class="text-xs whitespace-pre-wrap"></pre>
                             </div>
                         </section>
                     </form>
@@ -1171,7 +1171,6 @@
         const calculateTeamCornerLambdas = (event, totalLambdaCorners) => {
             const handicapMarket = event.markets?.['soccer.corner_handicap']?.submarkets?.['period=ft_corners']?.selections;
             if (!handicapMarket || totalLambdaCorners <= 0) {
-                // Fallback to ratio if handicap is not available
                 return { lambdaHome: totalLambdaCorners * 0.55, lambdaAway: totalLambdaCorners * 0.45 };
             }
 
@@ -1198,40 +1197,44 @@
                 return { lambdaHome, lambdaAway };
             }
 
-            // Fallback to ratio if handicap calculation fails
             return { lambdaHome: totalLambdaCorners * 0.55, lambdaAway: totalLambdaCorners * 0.45 };
         };
 
-        const findMarketLine = (market, submarket, initialLine) => {
+        const findMarketLine = (market, submarket) => {
             const selections = event.markets?.[market]?.submarkets?.[submarket]?.selections;
             if (!selections) return null;
 
-            let linesToTry = [initialLine];
-            if (market === 'soccer.total_corners') {
-                linesToTry.push(String(parseFloat(initialLine) - 1));
-                linesToTry.push(String(parseFloat(initialLine) + 1));
-            }
+            let bestLine = null;
+            let minProbDiff = Infinity;
 
-            for (const lineName of linesToTry) {
+            const uniqueLines = [...new Set(selections.map(s => s.params.replace('total=', '')))];
+
+            for (const lineName of uniqueLines) {
                 const overSelection = selections.find(s => s.outcome === 'over' && s.params === `total=${lineName}`);
-                const underSelection = selections.find(s => s.outcome === 'under' && s.params === `total=${lineName}`);
-
-                if (overSelection && underSelection) {
-                    const probOver = oddToProb(overSelection.price);
-                    let lambda = 0;
-                    let minError = Infinity;
-                    for (let l = 0.1; l < 20; l += 0.05) {
-                        const p_over = 1 - poissonCDF(l, parseFloat(lineName));
-                        const error = Math.abs(p_over - probOver);
-                        if (error < minError) {
-                            minError = error;
-                            lambda = l;
-                        }
+                if (overSelection && overSelection.probability) {
+                    const diff = Math.abs(overSelection.probability - 0.5);
+                    if (diff < minProbDiff) {
+                        minProbDiff = diff;
+                        bestLine = lineName;
                     }
-                    return lambda;
                 }
             }
 
+            if (bestLine) {
+                const overSelection = selections.find(s => s.outcome === 'over' && s.params === `total=${bestLine}`);
+                const probOver = oddToProb(overSelection.price);
+                let lambda = 0;
+                let minError = Infinity;
+                for (let l = 0.1; l < 20; l += 0.05) {
+                    const p_over = 1 - poissonCDF(l, parseFloat(bestLine));
+                    const error = Math.abs(p_over - probOver);
+                    if (error < minError) {
+                        minError = error;
+                        lambda = l;
+                    }
+                }
+                return lambda;
+            }
             return null;
         };
 
@@ -1294,9 +1297,9 @@
                 ggInput.readOnly = false;
             }
 
-            const goalsLambda = findMarketLine('soccer.total_goals', 'period=ft', '2.5');
-            const cornersLambda = findMarketLine('soccer.total_corners', 'period=ft_corners', '10.5');
-            const cardsLambda = findMarketLine('soccer.totals.cards', 'period=ft', '4.5');
+            const goalsLambda = findMarketLine('soccer.total_goals', 'period=ft');
+            const cornersLambda = findMarketLine('soccer.total_corners', 'period=ft_corners');
+            const cardsLambda = findMarketLine('soccer.totals.cards', 'period=ft');
             
             setLambdaInput($('#special-goals-lambda'), goalsLambda, 2.5);
             setLambdaInput($('#special-corners-lambda'), cornersLambda, 10.5);
@@ -1309,14 +1312,33 @@
             setLambdaInput($('#special-corners-lambda-away'), lambdaAway, totalCorners * 0.45);
 
             // Populate API data display
-            const apiData = {
-                goals: event.markets?.['soccer.total_goals'],
-                corners: event.markets?.['soccer.total_corners'],
-                corner_handicap: event.markets?.['soccer.corner_handicap'],
-                cards: event.markets?.['soccer.totals.cards'],
-                btts: event.markets?.['soccer.both_teams_to_score']
+            let formattedApiText = '';
+            const marketsToDisplay = {
+                'Golovi': event.markets?.['soccer.total_goals']?.submarkets?.['period=ft']?.selections,
+                'Korneri': event.markets?.['soccer.total_corners']?.submarkets?.['period=ft_corners']?.selections,
+                'Hendikep Kornera': event.markets?.['soccer.corner_handicap']?.submarkets?.['period=ft_corners']?.selections,
+                'Kartoni': event.markets?.['soccer.totals.cards']?.submarkets?.['period=ft']?.selections,
+                'Oba Tima Daju Gol': event.markets?.['soccer.both_teams_to_score']?.submarkets?.['period=ft']?.selections,
             };
-            apiDataDisplay.querySelector('pre').textContent = JSON.stringify(apiData, null, 2);
+
+            for(const [name, selections] of Object.entries(marketsToDisplay)) {
+                if (selections && selections.length > 0) {
+                    formattedApiText += `${name}:\n`;
+                    const lines = {};
+                    selections.forEach(sel => {
+                        const key = sel.params || sel.outcome;
+                        if (!lines[key]) lines[key] = {};
+                        lines[key][sel.outcome] = sel.price;
+                    });
+                    for (const [line, outcomes] of Object.entries(lines)) {
+                         formattedApiText += `  - ${line}: `;
+                         const odds = Object.entries(outcomes).map(([type, price]) => `${type}@${price}`).join(', ');
+                         formattedApiText += `${odds}\n`;
+                    }
+                    formattedApiText += '\n';
+                }
+            }
+            apiDataDisplay.querySelector('pre').textContent = formattedApiText || 'Nema dostupnih podataka za ove markete.';
         };
 
 
