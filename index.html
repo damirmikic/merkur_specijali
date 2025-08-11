@@ -196,6 +196,20 @@
          .action-btn.success:focus-visible {
             box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.4);
         }
+        .editable-odd {
+            border: 1px solid transparent;
+            background-color: transparent;
+            text-align: right;
+            font-weight: bold;
+            color: #2563eb;
+            width: 100%;
+        }
+        .editable-odd:focus {
+            background-color: #eff6ff;
+            border-color: #93c5fd;
+            outline: none;
+            box-shadow: none;
+        }
 
     </style>
 </head>
@@ -297,7 +311,7 @@
                     <form id="specials-form">
                          <section class="mb-8 p-6 bg-slate-50 border border-slate-200 rounded-lg">
                             <h3 class="font-bold text-lg text-slate-800 mb-4">Parametri za Specijal</h3>
-                             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
+                             <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
                                 <div class="input-group">
                                     <label for="special-goals-lambda">Oč. Golova (λ)</label>
                                     <input type="number" id="special-goals-lambda" step="0.1" value="2.5" title="Očekivani ukupan broj golova na meču">
@@ -307,6 +321,14 @@
                                     <input type="number" id="special-corners-lambda" step="0.1" value="10.5" title="Očekivani ukupan broj kornera na meču">
                                 </div>
                                 <div class="input-group">
+                                    <label for="special-cards-lambda">Oč. Kartona (λ)</label>
+                                    <input type="number" id="special-cards-lambda" step="0.1" value="4.5" title="Očekivani ukupan broj kartona na meču">
+                                </div>
+                                 <div class="input-group">
+                                    <label for="special-sot-lambda">Oč. Šuteva u Okvir (λ)</label>
+                                    <input type="number" id="special-sot-lambda" step="0.1" value="8.5" title="Očekivani ukupan broj šuteva u okvir gola na meču">
+                                </div>
+                                <div class="input-group">
                                     <label for="special-corners-lambda-home">Oč. Kornera Domaćin</label>
                                     <input type="number" id="special-corners-lambda-home" step="0.1" value="5.5" readonly title="Očekivani broj kornera za domaćina">
                                 </div>
@@ -314,11 +336,26 @@
                                     <label for="special-corners-lambda-away">Oč. Kornera Gost</label>
                                     <input type="number" id="special-corners-lambda-away" step="0.1" value="5.0" readonly title="Očekivani broj kornera za gosta">
                                 </div>
-                                 <div class="input-group">
-                                    <label for="special-cards-lambda">Oč. Kartona (λ)</label>
-                                    <input type="number" id="special-cards-lambda" step="0.1" value="4.5" title="Očekivani ukupan broj kartona na meču">
+                                <div class="input-group">
+                                    <label for="special-gg-prob">GG Verovatnoća (%)</label>
+                                    <input type="number" id="special-gg-prob" step="0.1" value="55.0" title="Verovatnoća da oba tima daju gol">
+                                </div>
+                                <div class="input-group">
+                                    <label for="special-penalty-odd">Kvota za Penal</label>
+                                    <input type="number" id="special-penalty-odd" step="0.01" value="3.0" title="Kvota da će biti dosuđen penal na meču">
+                                </div>
+                                <div class="input-group">
+                                    <label for="special-red-card-odd">Kvota za Crveni Karton</label>
+                                    <input type="number" id="special-red-card-odd" step="0.01" value="4.0" title="Kvota da će biti dodeljen crveni karton na meču">
                                 </div>
                              </div>
+                        </section>
+                         <section class="mb-8 p-6 bg-slate-50 border border-slate-200 rounded-lg">
+                            <h3 class="font-bold text-lg text-slate-800 mb-4">API Podaci za Meč</h3>
+                            <button type="button" id="toggle-api-data-btn" class="action-btn secondary !py-2 !px-4 !text-sm mb-4">Prikaži/Sakrij API Podatke</button>
+                            <div id="api-data-display" class="hidden bg-slate-800 text-white p-4 rounded-lg overflow-x-auto">
+                                <pre class="text-xs"></pre>
+                            </div>
                         </section>
                     </form>
                 </div>
@@ -395,6 +432,8 @@
         const tabButtons = $$('.tab-btn');
         const tabContents = $$('.tab-content');
         const matchDetailsSection = $('#match-details-section');
+        const toggleApiDataBtn = $('#toggle-api-data-btn');
+        const apiDataDisplay = $('#api-data-display');
         
         // Global State
         let playerCounter = 0;
@@ -794,6 +833,10 @@
             const goalsLambda = parseFloat($('#special-goals-lambda').value) || 0;
             const cornersLambda = parseFloat($('#special-corners-lambda').value) || 0;
             const cardsLambda = parseFloat($('#special-cards-lambda').value) || 0;
+            const sotLambda = parseFloat($('#special-sot-lambda').value) || 0;
+            const penaltyOdd = parseFloat($('#special-penalty-odd').value) || 0;
+            const redCardOdd = parseFloat($('#special-red-card-odd').value) || 0;
+
             const eventId = eventSelect.value;
             const event = apiEvents.find(e => e.id == eventId);
 
@@ -813,7 +856,7 @@
             };
             
             // Probabilities
-            const p_gg = event.prob_gg || (1 - Math.exp(-goalsLambda * 0.35)); // Use API prob if available, else fallback
+            const p_gg = (parseFloat($('#special-gg-prob').value) / 100) || (1 - Math.exp(-goalsLambda * 0.35));
             const p_3plus_goals = probOver(goalsLambda, 2);
             const p_under_4_goals = probUnder(goalsLambda, 4);
             const p_3plus_cards = probOver(cardsLambda, 2);
@@ -822,20 +865,21 @@
             const p_1plus_card_team = probOver(cardsLambda / 2, 0);
             const p_10plus_corners = probOver(cornersLambda, 9);
             const p_15plus_corners = probOver(cornersLambda, 14);
-            const p_3plus_corners_half = probOver(cornersLambda / 2, 2);
-            const p_9plus_sot = 1.5; // Placeholder odd
-            const p_11plus_sot = 2.5; // Placeholder odd
-            const p_penal = 0.3; // Approx
-            const p_red = 0.2; // Approx
+            const p_3plus_corners_half = probOver(cornersLambda * 0.45, 2) * probOver(cornersLambda * 0.55, 2);
+            const p_9plus_sot = probOver(sotLambda, 8);
+            const p_11plus_sot = probOver(sotLambda, 10);
+            const p_penal = oddToProb(penaltyOdd);
+            const p_red = oddToProb(redCardOdd);
 
             // Calculations
             createSpecialBet('Oba tima 2+ kartona', '', p_2plus_cards_team * p_2plus_cards_team);
             createSpecialBet('Penal i crveni karton', '', p_penal * p_red);
+            createSpecialBet('Penal ili crveni karton', '', p_penal + p_red - (p_penal * p_red));
             createSpecialBet('Manje od 4 gola', 'i uk. 3+ kartona', p_under_4_goals * p_3plus_cards);
-            createSpecialBet('11+ suteva u okvir', 'i GG', oddToProb(p_11plus_sot) * p_gg);
-            createSpecialBet('9+ suteva u okvir', 'i GG', oddToProb(p_9plus_sot) * p_gg);
+            createSpecialBet('11+ suteva u okvir', 'i GG', p_11plus_sot * p_gg);
+            createSpecialBet('9+ suteva u okvir', 'i GG', p_9plus_sot * p_gg);
             createSpecialBet('Oba tima 1+ kartona', 'i GG', p_1plus_card_team * p_1plus_card_team * p_gg);
-            createSpecialBet('10+ suteva u okvir', 'i 3+ golova', oddToProb(2.0) * p_3plus_goals);
+            createSpecialBet('10+ suteva u okvir', 'i 3+ golova', probOver(sotLambda, 9) * p_3plus_goals);
             createSpecialBet('3+ golova', 'i 10+ kornera', p_3plus_goals * p_10plus_corners);
             createSpecialBet('3+ golova', 'i 4+ kartona', p_3plus_goals * p_4plus_cards);
             createSpecialBet(`${homeTeam} pobedjuje`, 'posle penala', 0.1);
@@ -844,7 +888,7 @@
             createSpecialBet('10+ kornera', 'i 3+ golova', p_10plus_corners * p_3plus_goals);
             createSpecialBet('15+ kornera', 'i GG', p_15plus_corners * p_gg);
             createSpecialBet('15+ kornera', 'i 3+ golova', p_15plus_corners * p_3plus_goals);
-            createSpecialBet('3+ kornera', 'u svakom pol.', p_3plus_corners_half * p_3plus_corners_half);
+            createSpecialBet('3+ kornera', 'u svakom pol.', p_3plus_corners_half);
             createSpecialBet('Gol u nadoknadi', '2. pol.', 0.25);
             createSpecialBet('Gol u nadoknadi', '1. pol.', 0.15);
             createSpecialBet('Sudija gleda VAR', '', 0.4);
@@ -852,7 +896,8 @@
             createSpecialBet('Precka ili stativa', 'na mecu', 0.5);
             createSpecialBet('Gol iz slobodnog udarca', '', 0.08);
             createSpecialBet('Gol izvan 16m', '', 0.2);
-            createSpecialBet('Dosudjen penal', 'za oba tima', p_penal/2 * p_penal/2);
+            createSpecialBet('Dosudjen penal', 'za oba tima', (p_penal/2) * (p_penal/2));
+            createSpecialBet('Gol glavom na mecu', '', 0.28);
 
             return results;
         };
@@ -890,7 +935,9 @@
                         <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-800">${item.player}</td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-600">${item.market2}</td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-500">${item.market3}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-bold text-blue-600">${item.odd}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm">
+                            <input type="number" class="editable-odd" step="0.01" value="${item.odd}" />
+                        </td>
                         <td class="px-4 py-4 text-center">
                             <button type="button" class="remove-preview-row" title="Ukloni ovu kvotu iz CSV-a">&times;</button>
                         </td>
@@ -928,7 +975,7 @@
                     const cells = row.querySelectorAll('td');
                     const market2 = cells[1].textContent;
                     const market3 = cells[2].textContent;
-                    const odd = cells[3].textContent;
+                    const odd = cells[3].querySelector('.editable-odd').value;
                     const rowData = [ date, time, '', market2, market3, odd, '', '', '', '', '', '', '' ];
                     csvContent += rowData.join(',') + '\r\n';
                 });
@@ -946,7 +993,7 @@
                     playerData[playerName].push({
                         market2: cells[1].textContent,
                         market3: cells[2].textContent,
-                        odd: cells[3].textContent,
+                        odd: cells[3].querySelector('.editable-odd').value,
                     });
                 });
 
@@ -985,6 +1032,8 @@
             apiPlayerAdder.classList.add('hidden');
             apiPlayerSelect.innerHTML = '';
             matchDetailsSection.classList.add('hidden');
+            apiDataDisplay.classList.add('hidden');
+            apiDataDisplay.querySelector('pre').textContent = '';
         };
 
         const populateTeamFilter = (teams) => {
@@ -1122,7 +1171,8 @@
         const calculateTeamCornerLambdas = (event, totalLambdaCorners) => {
             const handicapMarket = event.markets?.['soccer.corner_handicap']?.submarkets?.['period=ft_corners']?.selections;
             if (!handicapMarket || totalLambdaCorners <= 0) {
-                return { lambdaHome: totalLambdaCorners / 2, lambdaAway: totalLambdaCorners / 2 };
+                // Fallback to ratio if handicap is not available
+                return { lambdaHome: totalLambdaCorners * 0.55, lambdaAway: totalLambdaCorners * 0.45 };
             }
 
             let bestHandicap = null;
@@ -1148,7 +1198,8 @@
                 return { lambdaHome, lambdaAway };
             }
 
-            return { lambdaHome: totalLambdaCorners / 2, lambdaAway: totalLambdaCorners / 2 };
+            // Fallback to ratio if handicap calculation fails
+            return { lambdaHome: totalLambdaCorners * 0.55, lambdaAway: totalLambdaCorners * 0.45 };
         };
 
         const findMarketLine = (market, submarket, initialLine) => {
@@ -1156,10 +1207,9 @@
             if (!selections) return null;
 
             let linesToTry = [initialLine];
-            // Only apply fallback logic for corners market
             if (market === 'soccer.total_corners') {
-                linesToTry.push((parseFloat(initialLine) - 1).toString());
-                linesToTry.push((parseFloat(initialLine) + 1).toString());
+                linesToTry.push(String(parseFloat(initialLine) - 1));
+                linesToTry.push(String(parseFloat(initialLine) + 1));
             }
 
             for (const lineName of linesToTry) {
@@ -1225,12 +1275,23 @@
             populateApiPlayerSelect(availableApiPlayers);
             
             // --- Populate Specials Tab Data ---
+            const ggInput = $('#special-gg-prob');
             const bttsMarket = event.markets?.['soccer.both_teams_to_score']?.submarkets?.['period=ft']?.selections;
+            let ggProb = null;
             if (bttsMarket) {
                 const yesOdd = bttsMarket.find(s => s.outcome === 'yes')?.price;
                 if (yesOdd) {
-                    event.prob_gg = oddToProb(yesOdd);
+                    ggProb = oddToProb(yesOdd);
+                    event.prob_gg = ggProb; 
                 }
+            }
+            
+            if (ggProb) {
+                ggInput.value = (ggProb * 100).toFixed(2);
+                ggInput.readOnly = true;
+            } else {
+                ggInput.value = 55.0;
+                ggInput.readOnly = false;
             }
 
             const goalsLambda = findMarketLine('soccer.total_goals', 'period=ft', '2.5');
@@ -1244,8 +1305,18 @@
             const totalCorners = parseFloat($('#special-corners-lambda').value);
             const { lambdaHome, lambdaAway } = calculateTeamCornerLambdas(event, totalCorners);
             
-            setLambdaInput($('#special-corners-lambda-home'), lambdaHome, totalCorners / 2);
-            setLambdaInput($('#special-corners-lambda-away'), lambdaAway, totalCorners / 2);
+            setLambdaInput($('#special-corners-lambda-home'), lambdaHome, totalCorners * 0.55);
+            setLambdaInput($('#special-corners-lambda-away'), lambdaAway, totalCorners * 0.45);
+
+            // Populate API data display
+            const apiData = {
+                goals: event.markets?.['soccer.total_goals'],
+                corners: event.markets?.['soccer.total_corners'],
+                corner_handicap: event.markets?.['soccer.corner_handicap'],
+                cards: event.markets?.['soccer.totals.cards'],
+                btts: event.markets?.['soccer.both_teams_to_score']
+            };
+            apiDataDisplay.querySelector('pre').textContent = JSON.stringify(apiData, null, 2);
         };
 
 
@@ -1352,6 +1423,10 @@
             if (selectedTeam) $('#match-name').value = selectedTeam;
         });
         
+        on(toggleApiDataBtn, 'click', () => {
+            apiDataDisplay.classList.toggle('hidden');
+        });
+
         // --- Initial Setup ---
         window.onload = () => {
             const now = new Date();
