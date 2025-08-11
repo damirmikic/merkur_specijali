@@ -878,23 +878,22 @@
             const p_penal = oddToProb(penaltyOdd);
             const p_red = oddToProb(redCardOdd);
 
-            // Calculations with Correlation
+            // Calculations
             createSpecialBet('Oba tima 2+ kartona', '', p_2plus_cards_team * p_2plus_cards_team);
             createSpecialBet('Penal i crveni karton', '', calculateCorrelatedProbability(p_penal, p_red, 1.1));
             createSpecialBet('Penal ili crveni karton', '', p_penal + p_red - (p_penal * p_red));
-            createSpecialBet('Manje od 4 gola', 'i uk. 3+ kartona', calculateCorrelatedProbability(p_under_4_goals, p_3plus_cards, 1.05));
+            createSpecialBet('Manje od 4 gola', 'i uk. 3+ kartona', p_under_4_goals * p_3plus_cards);
             createSpecialBet('11+ suteva u okvir', 'i GG', calculateCorrelatedProbability(p_11plus_sot, p_gg, 1.2));
             createSpecialBet('9+ suteva u okvir', 'i GG', calculateCorrelatedProbability(p_9plus_sot, p_gg, 1.2));
-            createSpecialBet('Oba tima 1+ kartona', 'i GG', calculateCorrelatedProbability(p_1plus_card_team * p_1plus_card_team, p_gg, 1.1));
+            createSpecialBet('Oba tima 1+ kartona', 'i GG', (p_1plus_card_team * p_1plus_card_team) * p_gg);
             createSpecialBet('10+ suteva u okvir', 'i 3+ golova', calculateCorrelatedProbability(probOver(sotLambda, 9), p_3plus_goals, 1.3));
-            createSpecialBet('3+ golova', 'i 10+ kornera', calculateCorrelatedProbability(p_3plus_goals, p_10plus_corners, 1.2));
-            createSpecialBet('3+ golova', 'i 4+ kartona', calculateCorrelatedProbability(p_3plus_goals, p_4plus_cards, 1.1));
+            createSpecialBet('3+ golova', 'i 10+ kornera', p_3plus_goals * p_10plus_corners);
+            createSpecialBet('3+ golova', 'i 4+ kartona', p_3plus_goals * p_4plus_cards);
             createSpecialBet(`${homeTeam} pobedjuje`, 'posle penala', 0.1);
             createSpecialBet(`${awayTeam} pobedjuje`, 'posle penala', 0.1);
-            createSpecialBet('10+ kornera', 'i GG', calculateCorrelatedProbability(p_10plus_corners, p_gg, 1.15));
-            createSpecialBet('10+ kornera', 'i 3+ golova', calculateCorrelatedProbability(p_10plus_corners, p_3plus_goals, 1.2));
-            createSpecialBet('15+ kornera', 'i GG', calculateCorrelatedProbability(p_15plus_corners, p_gg, 1.2));
-            createSpecialBet('15+ kornera', 'i 3+ golova', calculateCorrelatedProbability(p_15plus_corners, p_3plus_goals, 1.25));
+            createSpecialBet('10+ kornera', 'i GG', p_10plus_corners * p_gg);
+            createSpecialBet('15+ kornera', 'i GG', p_15plus_corners * p_gg);
+            createSpecialBet('15+ kornera', 'i 3+ golova', p_15plus_corners * p_3plus_goals);
             createSpecialBet('3+ kornera', 'u svakom pol.', p_3plus_corners_half);
             createSpecialBet('Gol u nadoknadi', '2. pol.', 0.25);
             createSpecialBet('Gol u nadoknadi', '1. pol.', 0.15);
