@@ -1151,6 +1151,39 @@
             return { lambdaHome: totalLambdaCorners / 2, lambdaAway: totalLambdaCorners / 2 };
         };
 
+        const findMarketLine = (market, submarket, initialLine) => {
+            const selections = event.markets?.[market]?.submarkets?.[submarket]?.selections;
+            if (!selections) return null;
+
+            let linesToTry = [initialLine];
+            // Only apply fallback logic for corners market
+            if (market === 'soccer.total_corners') {
+                linesToTry.push((parseFloat(initialLine) - 1).toString());
+                linesToTry.push((parseFloat(initialLine) + 1).toString());
+            }
+
+            for (const lineName of linesToTry) {
+                const overSelection = selections.find(s => s.outcome === 'over' && s.params === `total=${lineName}`);
+                const underSelection = selections.find(s => s.outcome === 'under' && s.params === `total=${lineName}`);
+
+                if (overSelection && underSelection) {
+                    const probOver = oddToProb(overSelection.price);
+                    let lambda = 0;
+                    let minError = Infinity;
+                    for (let l = 0.1; l < 20; l += 0.05) {
+                        const p_over = 1 - poissonCDF(l, parseFloat(lineName));
+                        const error = Math.abs(p_over - probOver);
+                        if (error < minError) {
+                            minError = error;
+                            lambda = l;
+                        }
+                    }
+                    return lambda;
+                }
+            }
+
+            return null;
+        };
 
         const populateMatchData = (eventId) => {
             resetForm();
@@ -1192,28 +1225,6 @@
             populateApiPlayerSelect(availableApiPlayers);
             
             // --- Populate Specials Tab Data ---
-            const findMarketLine = (market, submarket, lineName) => {
-                const selections = event.markets?.[market]?.submarkets?.[submarket]?.selections;
-                if (!selections) return null;
-                const overSelection = selections.find(s => s.outcome === 'over' && s.params === `total=${lineName}`);
-                const underSelection = selections.find(s => s.outcome === 'under' && s.params === `total=${lineName}`);
-                if (overSelection && underSelection) {
-                    const probOver = oddToProb(overSelection.price);
-                    let lambda = 0;
-                    let minError = Infinity;
-                    for (let l = 0.1; l < 20; l += 0.05) {
-                        const p_over = 1 - poissonCDF(l, parseFloat(lineName));
-                        const error = Math.abs(p_over - probOver);
-                        if (error < minError) {
-                            minError = error;
-                            lambda = l;
-                        }
-                    }
-                    return lambda;
-                }
-                return null;
-            };
-            
             const bttsMarket = event.markets?.['soccer.both_teams_to_score']?.submarkets?.['period=ft']?.selections;
             if (bttsMarket) {
                 const yesOdd = bttsMarket.find(s => s.outcome === 'yes')?.price;
