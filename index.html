@@ -828,15 +828,9 @@
         };
         
         const calculateCorrelatedProbability = (probA, probB, boost = 1.15) => {
-            // A simple heuristic model for positive correlation
-            // P(A and B) = P(A) * P(B|A)
-            // We approximate P(B|A) by boosting the base probability of B
-            // It's better to boost the less likely event's probability
             const p_less_likely = Math.min(probA, probB);
             const p_more_likely = Math.max(probA, probB);
-            
-            const boosted_p = Math.min(p_more_likely * boost, 0.99); // Cap probability at 0.99
-            
+            const boosted_p = Math.min(p_more_likely * boost, 0.99);
             return p_less_likely * boosted_p;
         };
 
@@ -870,13 +864,13 @@
             
             // Probabilities
             const p_gg = (parseFloat($('#special-gg-prob').value) / 100) || (1 - Math.exp(-goalsLambda * 0.35));
-            const p_3plus_goals = probOver(goalsLambda, 2);
+            const p_3plus_goals = event.prob_3plus_goals || probOver(goalsLambda, 2);
             const p_under_4_goals = probUnder(goalsLambda, 4);
             const p_3plus_cards = probOver(cardsLambda, 2);
             const p_4plus_cards = probOver(cardsLambda, 3);
             const p_2plus_cards_team = probOver(cardsLambda / 2, 1);
             const p_1plus_card_team = probOver(cardsLambda / 2, 0);
-            const p_10plus_corners = probOver(cornersLambda, 9);
+            const p_10plus_corners = event.prob_10plus_corners || probOver(cornersLambda, 9);
             const p_15plus_corners = probOver(cornersLambda, 14);
             const p_3plus_corners_half = probOver(cornersLambda * 0.45, 2) * probOver(cornersLambda * 0.55, 2);
             const p_9plus_sot = probOver(sotLambda, 8);
@@ -1313,6 +1307,12 @@
             const goalsLambda = findMarketLine('soccer.total_goals', 'period=ft');
             const cornersLambda = findMarketLine('soccer.total_corners', 'period=ft_corners');
             const cardsLambda = findMarketLine('soccer.totals.cards', 'period=ft');
+
+            const over2_5_goals = event.markets?.['soccer.total_goals']?.submarkets?.['period=ft']?.selections.find(s => s.params === 'total=2.5' && s.outcome === 'over');
+            if (over2_5_goals) event.prob_3plus_goals = oddToProb(over2_5_goals.price);
+
+            const over9_5_corners = event.markets?.['soccer.total_corners']?.submarkets?.['period=ft_corners']?.selections.find(s => s.params === 'total=9.5' && s.outcome === 'over');
+            if (over9_5_corners) event.prob_10plus_corners = oddToProb(over9_5_corners.price);
             
             setLambdaInput($('#special-goals-lambda'), goalsLambda, 2.5);
             setLambdaInput($('#special-corners-lambda'), cornersLambda, 10.5);
