@@ -211,6 +211,36 @@
             box-shadow: none;
         }
 
+        /* --- Tour Tooltip --- */
+        #tour-highlight {
+            box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5);
+            pointer-events: none;
+        }
+        #tour-arrow {
+            content: '';
+            position: absolute;
+            width: 12px;
+            height: 12px;
+            background: white;
+            transform: rotate(45deg);
+        }
+        #tour-tooltip.arrow-top #tour-arrow {
+            bottom: -6px;
+            left: calc(50% - 6px);
+        }
+        #tour-tooltip.arrow-bottom #tour-arrow {
+            top: -6px;
+            left: calc(50% - 6px);
+        }
+        #tour-tooltip.arrow-left #tour-arrow {
+            right: -6px;
+            top: calc(50% - 6px);
+        }
+        #tour-tooltip.arrow-right #tour-arrow {
+            left: -6px;
+            top: calc(50% - 6px);
+        }
+
     </style>
 </head>
 <body class="bg-gray-100 text-slate-800">
@@ -224,9 +254,15 @@
                     </div>
                     <h1 class="text-2xl sm:text-3xl font-bold text-slate-800">Generator Kvota</h1>
                  </div>
-                 <div id="status-container" class="flex items-center gap-2.5 text-sm font-medium">
-                    <div id="status-indicator" class="w-2.5 h-2.5 rounded-full bg-red-500 pulse-red" title="Status učitavanja baze podataka"></div>
-                    <span id="status-text" class="text-slate-500">Učitavanje...</span>
+                 <div class="flex items-center gap-4">
+                    <div id="status-container" class="flex items-center gap-2.5 text-sm font-medium">
+                        <div id="status-indicator" class="w-2.5 h-2.5 rounded-full bg-red-500 pulse-red" title="Status učitavanja baze podataka"></div>
+                        <span id="status-text" class="text-slate-500">Učitavanje...</span>
+                    </div>
+                    <button id="start-tour-btn" class="flex items-center gap-2 bg-slate-200 hover:bg-slate-300 text-slate-600 font-bold py-2 px-3 rounded-lg shadow-sm transition-all text-sm">
+                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-help-circle"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>
+                        Pomoć
+                    </button>
                  </div>
             </header>
 
@@ -406,6 +442,22 @@
         </div>
     </div>
 
+    <!-- Tour HTML -->
+    <div id="tour-highlight" class="hidden fixed rounded-md border-2 border-blue-500 z-50 transition-all duration-300 pointer-events-none"></div>
+    <div id="tour-tooltip" class="hidden fixed bg-white rounded-lg shadow-xl z-50 p-4 max-w-xs transition-all duration-300">
+        <div id="tour-arrow" class="absolute bg-white w-3 h-3 transform rotate-45"></div>
+        <h3 id="tour-title" class="font-bold text-lg mb-2 text-slate-800"></h3>
+        <p id="tour-text" class="text-sm text-slate-600 mb-4"></p>
+        <div class="flex justify-between items-center">
+            <button id="tour-skip" class="text-xs text-slate-500 hover:text-slate-800">Preskoči</button>
+            <div>
+                <button id="tour-prev" class="text-sm font-medium py-1 px-3 rounded-md hover:bg-slate-100">Prethodno</button>
+                <button id="tour-next" class="text-sm font-medium py-1 px-3 rounded-md bg-blue-600 text-white hover:bg-blue-700">Dalje</button>
+            </div>
+        </div>
+    </div>
+
+
     <script>
         const $ = (selector) => document.querySelector(selector);
         const $$ = (selector) => document.querySelectorAll(selector);
@@ -434,6 +486,7 @@
         const matchDetailsSection = $('#match-details-section');
         const toggleApiDataBtn = $('#toggle-api-data-btn');
         const apiDataDisplay = $('#api-data-display');
+        const startTourBtn = $('#start-tour-btn');
         
         // Global State
         let playerCounter = 0;
@@ -1460,6 +1513,108 @@
         on(toggleApiDataBtn, 'click', () => {
             apiDataDisplay.classList.toggle('hidden');
         });
+
+        // --- Tour Logic ---
+        const tourHighlight = $('#tour-highlight');
+        const tourTooltip = $('#tour-tooltip');
+        const tourTitle = $('#tour-title');
+        const tourText = $('#tour-text');
+        const tourNext = $('#tour-next');
+        const tourPrev = $('#tour-prev');
+        const tourSkip = $('#tour-skip');
+        let currentStep = 0;
+
+        const tourSteps = [
+            { element: '#fetch-api-btn', title: 'Korak 1: Učitavanje Mečeva', text: 'Kliknite ovde da biste preuzeli najnovije mečeve i kvote sa API-ja.', position: 'bottom' },
+            { element: '#competition-select', title: 'Korak 2: Izbor Takmičenja', text: 'Nakon učitavanja, ovde izaberite željeno takmičenje.', position: 'bottom' },
+            { element: '#event-select', title: 'Korak 3: Izbor Meča', text: 'Zatim, izaberite meč za koji želite da generišete kvote.', position: 'bottom' },
+            { element: '#team-select', title: 'Korak 4: Izbor Tima', text: 'Možete filtrirati igrače po timu kako biste lakše pronašli željenog igrača.', position: 'right' },
+            { element: '#api-player-adder', title: 'Korak 5: Dodavanje Igrača', text: 'Izaberite igrača iz padajućeg menija i kliknite na "+" dugme da ga dodate u listu za obradu.', position: 'bottom' },
+            { element: '#generate-btn', title: 'Korak 6: Generisanje Kvota', text: 'Kada ste dodali sve željene igrače, kliknite ovde da generišete sve kvote.', position: 'top' },
+            { element: '#download-csv-btn', title: 'Korak 7: Preuzimanje CSV Fajla', text: 'Na kraju, preuzmite generisane kvote u CSV formatu klikom na ovo dugme.', position: 'top' },
+        ];
+
+        function showStep(index) {
+            const step = tourSteps[index];
+            const targetElement = $(step.element);
+
+            if (!targetElement || targetElement.offsetParent === null) {
+                // If element is not visible, try to find the next one
+                if (index < tourSteps.length - 1) {
+                    showStep(index + 1);
+                } else {
+                    endTour();
+                }
+                return;
+            }
+            
+            const rect = targetElement.getBoundingClientRect();
+            
+            tourHighlight.classList.remove('hidden');
+            tourHighlight.style.width = `${rect.width + 8}px`;
+            tourHighlight.style.height = `${rect.height + 8}px`;
+            tourHighlight.style.top = `${rect.top - 4}px`;
+            tourHighlight.style.left = `${rect.left - 4}px`;
+
+            tourTitle.textContent = step.title;
+            tourText.textContent = step.text;
+            tourTooltip.classList.remove('hidden');
+            
+            tourTooltip.className = tourTooltip.className.replace(/arrow-\w+/g, '');
+            tourTooltip.classList.add(`arrow-${step.position}`);
+
+            const tooltipRect = tourTooltip.getBoundingClientRect();
+
+            switch (step.position) {
+                case 'bottom':
+                    tourTooltip.style.top = `${rect.bottom + 15}px`;
+                    tourTooltip.style.left = `${rect.left + rect.width / 2 - tooltipRect.width / 2}px`;
+                    break;
+                case 'top':
+                    tourTooltip.style.top = `${rect.top - tooltipRect.height - 15}px`;
+                    tourTooltip.style.left = `${rect.left + rect.width / 2 - tooltipRect.width / 2}px`;
+                    break;
+                case 'right':
+                     tourTooltip.style.top = `${rect.top + rect.height / 2 - tooltipRect.height / 2}px`;
+                     tourTooltip.style.left = `${rect.right + 15}px`;
+                    break;
+                case 'left':
+                     tourTooltip.style.top = `${rect.top + rect.height / 2 - tooltipRect.height / 2}px`;
+                     tourTooltip.style.left = `${rect.left - tooltipRect.width - 15}px`;
+                    break;
+            }
+
+            tourPrev.style.display = index === 0 ? 'none' : 'inline-block';
+            tourNext.textContent = index === tourSteps.length - 1 ? 'Završi' : 'Dalje';
+        }
+
+        function startTour() {
+            currentStep = 0;
+            showStep(currentStep);
+        }
+
+        function endTour() {
+            tourHighlight.classList.add('hidden');
+            tourTooltip.classList.add('hidden');
+        }
+
+        on(startTourBtn, 'click', startTour);
+        on(tourSkip, 'click', endTour);
+        on(tourNext, 'click', () => {
+            if (currentStep < tourSteps.length - 1) {
+                currentStep++;
+                showStep(currentStep);
+            } else {
+                endTour();
+            }
+        });
+        on(tourPrev, 'click', () => {
+            if (currentStep > 0) {
+                currentStep--;
+                showStep(currentStep);
+            }
+        });
+
 
         // --- Initial Setup ---
         window.onload = () => {
