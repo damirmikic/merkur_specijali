@@ -240,6 +240,22 @@
             left: -6px;
             top: calc(50% - 6px);
         }
+        #tour-tooltip h3 {
+            cursor: move;
+        }
+        #tour-close {
+            position: absolute;
+            top: 0.5rem;
+            right: 0.75rem;
+            font-size: 1.5rem;
+            line-height: 1;
+            color: #9ca3af;
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+        #tour-close:hover {
+            color: #374151;
+        }
 
     </style>
 </head>
@@ -443,10 +459,10 @@
     </div>
 
     <!-- Tour HTML -->
-    <div id="tour-highlight" class="hidden fixed rounded-md border-2 border-blue-500 z-50 transition-all duration-300 pointer-events-none"></div>
     <div id="tour-tooltip" class="hidden fixed bg-white rounded-lg shadow-xl z-50 p-4 max-w-xs transition-all duration-300">
         <div id="tour-arrow" class="absolute bg-white w-3 h-3 transform rotate-45"></div>
-        <h3 id="tour-title" class="font-bold text-lg mb-2 text-slate-800"></h3>
+        <button id="tour-close">&times;</button>
+        <h3 id="tour-title" class="font-bold text-lg mb-2 text-slate-800 pr-6"></h3>
         <p id="tour-text" class="text-sm text-slate-600 mb-4"></p>
         <div class="flex justify-between items-center">
             <button id="tour-skip" class="text-xs text-slate-500 hover:text-slate-800">Preskoči</button>
@@ -456,6 +472,7 @@
             </div>
         </div>
     </div>
+    <div id="tour-highlight" class="hidden fixed rounded-md border-2 border-blue-500 z-40 transition-all duration-300 pointer-events-none"></div>
 
 
     <script>
@@ -1522,6 +1539,7 @@
         const tourNext = $('#tour-next');
         const tourPrev = $('#tour-prev');
         const tourSkip = $('#tour-skip');
+        const tourClose = $('#tour-close');
         let currentStep = 0;
 
         const tourSteps = [
@@ -1539,7 +1557,6 @@
             const targetElement = $(step.element);
 
             if (!targetElement || targetElement.offsetParent === null) {
-                // If element is not visible, try to find the next one
                 if (index < tourSteps.length - 1) {
                     showStep(index + 1);
                 } else {
@@ -1598,8 +1615,41 @@
             tourTooltip.classList.add('hidden');
         }
 
+        function makeDraggable(element) {
+            let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
+            const header = element.querySelector("h3");
+
+            const dragMouseDown = (e) => {
+                e.preventDefault();
+                pos3 = e.clientX;
+                pos4 = e.clientY;
+                document.onmouseup = closeDragElement;
+                document.onmousemove = elementDrag;
+            };
+
+            if (header) {
+                header.onmousedown = dragMouseDown;
+            }
+
+            const elementDrag = (e) => {
+                e.preventDefault();
+                pos1 = pos3 - e.clientX;
+                pos2 = pos4 - e.clientY;
+                pos3 = e.clientX;
+                pos4 = e.clientY;
+                element.style.top = (element.offsetTop - pos2) + "px";
+                element.style.left = (element.offsetLeft - pos1) + "px";
+            };
+
+            const closeDragElement = () => {
+                document.onmouseup = null;
+                document.onmousemove = null;
+            };
+        }
+
         on(startTourBtn, 'click', startTour);
         on(tourSkip, 'click', endTour);
+        on(tourClose, 'click', endTour);
         on(tourNext, 'click', () => {
             if (currentStep < tourSteps.length - 1) {
                 currentStep++;
@@ -1625,6 +1675,7 @@
             apiPlayerAdder.classList.add('hidden');
             apiPlayerSelect.innerHTML = '';
             fetchFbrefData();
+            makeDraggable(tourTooltip);
         };
     </script>
 </body>
