@@ -18,7 +18,7 @@ exports.handler = async (event, context) => {
   const to = from + (96 * 3600); // 96 hours from now
 
   // Construct the API URL with all the required markets for both players and specials tabs
-  const API_URL = `https://sports-api.cloudbet.com/pub/v2/odds/events?sport=soccer&from=${from}&to=${to}&live=false&markets=soccer.match_odds&markets=soccer.total_goals&markets=soccer.anytime_goalscorer&markets=soccer.both_teams_to_score&markets=soccer.total_corners&markets=soccer.corner_handicap&players=true&limit=150`;
+  const API_URL = `https://sports-api.cloudbet.com/pub/v2/odds/events?sport=soccer&from=${from}&to=${to}&live=false&markets=soccer.match_odds&markets=soccer.total_goals&markets=soccer.anytime_goalscorer&markets=soccer.both_teams_to_score&markets=soccer.total_corners&markets=soccer.corner_handicap&players=true&limit=200`;
 
   try {
     // Fetch data from the Cloudbet API
