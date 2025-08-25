@@ -284,14 +284,16 @@
 
             <div class="border-b border-slate-200">
                 <nav class="flex -mb-px px-6 sm:px-8">
-                    <button class="tab-btn active" data-tab="players">Igrači</button>
-                    <button class="tab-btn" data-tab="specials">Specijal</button>
+                    <button class="tab-btn active" data-tab="players">Igrači (Fudbal)</button>
+                    <button class="tab-btn" data-tab="specials">Specijal (Fudbal)</button>
+                    <button class="tab-btn" data-tab="basketball-specials">Specijal (Košarka)</button>
                 </nav>
             </div>
             
             <div class="p-6 sm:p-8">
-                 <section id="api-section" class="mb-8 p-6 bg-slate-50 border border-slate-200 rounded-lg">
-                    <h3 class="font-bold text-lg text-slate-800 mb-4">Preuzimanje Podataka sa API-ja</h3>
+                 <!-- Soccer API Section -->
+                 <section id="soccer-api-section" class="mb-8 p-6 bg-slate-50 border border-slate-200 rounded-lg">
+                    <h3 class="font-bold text-lg text-slate-800 mb-4">Preuzimanje Fudbalskih Podataka</h3>
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
                         <div class="md:col-span-3">
                             <button type="button" id="fetch-api-btn" class="w-full md:w-auto action-btn secondary">
@@ -320,7 +322,7 @@
                     </div>
                 </section>
 
-                <!-- Players Tab Content -->
+                <!-- Players Tab Content (Soccer) -->
                 <div id="tab-players" class="tab-content active">
                     <form id="odds-form">
                         <section class="grid grid-cols-1 md:grid-cols-3 gap-4 items-end mb-8">
@@ -357,7 +359,7 @@
                     </form>
                 </div>
 
-                <!-- Specials Tab Content -->
+                <!-- Specials Tab Content (Soccer) -->
                 <div id="tab-specials" class="tab-content">
                     <form id="specials-form">
                          <section class="mb-8 p-6 bg-slate-50 border border-slate-200 rounded-lg">
@@ -427,47 +429,94 @@
                         </section>
                     </form>
                 </div>
-
-                <!-- Common Action Buttons & Preview -->
-                <div class="flex flex-col md:flex-row justify-center items-center gap-4 my-8">
-                    <button id="generate-btn" class="w-full md:w-auto action-btn primary">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-zap"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
-                        <span id="generate-btn-text">Generiši Kvote</span>
-                    </button>
-                    <button type="button" id="reset-btn" class="w-full md:w-auto action-btn secondary">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-rotate-cw"><path d="M21 2v6h-6"></path><path d="M3 12a9 9 0 1 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"></path></svg>
-                        Poništi Unos
-                    </button>
+                
+                <!-- Basketball Specials Tab Content -->
+                <div id="tab-basketball-specials" class="tab-content">
+                    <section class="mb-8 p-6 bg-slate-50 border border-slate-200 rounded-lg">
+                        <h3 class="font-bold text-lg text-slate-800 mb-4">Košarkaški Specijal Generator</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div class="input-group">
+                                <label for="bball-match-select">Izaberi Meč</label>
+                                <select id="bball-match-select">
+                                    <option>Učitavanje mečeva...</option>
+                                </select>
+                            </div>
+                            <div class="input-group">
+                                <label for="bball-domacin">Domaćin</label>
+                                <input type="text" id="bball-domacin" placeholder="Domaćin će se pojaviti ovde" disabled>
+                            </div>
+                        </div>
+                    </section>
+                    <div class="flex flex-col md:flex-row justify-center items-center gap-4 my-8">
+                         <button id="bball-generate-btn" class="w-full md:w-auto action-btn primary">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-zap"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+                            Generiši Košarkaški Specijal
+                        </button>
+                    </div>
+                     <div id="bball-preview-section" class="hidden">
+                        <h2 class="text-xl sm:text-2xl font-bold text-slate-800 mb-6 text-center">Pregled Generisanog Specijala</h2>
+                        <div class="overflow-x-auto rounded-lg border border-slate-200">
+                            <table class="min-w-full">
+                                <thead class="bg-slate-50">
+                                    <tr>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">MATCH_NAME</th>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">LEAGUE_NAME</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="bball-preview-table-body" class="bg-white"></tbody>
+                            </table>
+                        </div>
+                        <div class="flex justify-center mt-8">
+                            <button id="bball-download-csv-btn" class="w-full md:w-auto action-btn success">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-download-cloud"><path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"></path><path d="M12 12v9"></path><path d="m8 17 4 4 4-4"></path></svg>
+                                Preuzmi CSV
+                            </button>
+                        </div>
+                    </div>
                 </div>
 
-                <div id="preview-section" class="hidden">
-                    <h2 class="text-xl sm:text-2xl font-bold text-slate-800 mb-6 text-center">Pregled Generisanih Kvota</h2>
-                     <div class="flex items-center justify-between mb-4">
-                        <p id="preview-match-name" class="text-sm font-medium text-slate-600"></p>
-                        <div class="flex items-center gap-2">
-                             <input type="text" id="csv-match-name" placeholder="MATCH_NAME" class="input-group input !w-auto text-sm">
-                             <input type="text" id="csv-league-name" placeholder="LEAGUE_NAME" class="input-group input !w-auto text-sm">
-                        </div>
-                     </div>
-                    <div class="overflow-x-auto rounded-lg border border-slate-200">
-                        <table class="min-w-full">
-                            <thead class="bg-slate-50">
-                                <tr>
-                                    <th scope="col" class="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Igrač / Igra</th>
-                                    <th scope="col" class="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Opis 1</th>
-                                    <th scope="col" class="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Opis 2</th>
-                                    <th scope="col" class="px-6 py-3 text-right text-xs font-semibold text-slate-600 uppercase tracking-wider">Kvota</th>
-                                    <th scope="col" class="px-4 py-3 text-center text-xs font-semibold text-slate-600 uppercase tracking-wider">Ukloni</th>
-                                </tr>
-                            </thead>
-                            <tbody id="preview-table-body" class="bg-white"></tbody>
-                        </table>
-                    </div>
-                    <div class="flex justify-center mt-8">
-                        <button id="download-csv-btn" class="w-full md:w-auto action-btn success">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-download-cloud"><path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"></path><path d="M12 12v9"></path><path d="m8 17 4 4 4-4"></path></svg>
-                            Preuzmi CSV
+                <!-- Common Action Buttons & Preview -->
+                <div id="common-actions-preview">
+                    <div class="flex flex-col md:flex-row justify-center items-center gap-4 my-8">
+                        <button id="generate-btn" class="w-full md:w-auto action-btn primary">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-zap"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+                            <span id="generate-btn-text">Generiši Kvote</span>
                         </button>
+                        <button type="button" id="reset-btn" class="w-full md:w-auto action-btn secondary">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-rotate-cw"><path d="M21 2v6h-6"></path><path d="M3 12a9 9 0 1 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"></path></svg>
+                            Poništi Unos
+                        </button>
+                    </div>
+
+                    <div id="preview-section" class="hidden">
+                        <h2 class="text-xl sm:text-2xl font-bold text-slate-800 mb-6 text-center">Pregled Generisanih Kvota</h2>
+                         <div class="flex items-center justify-between mb-4">
+                            <p id="preview-match-name" class="text-sm font-medium text-slate-600"></p>
+                            <div class="flex items-center gap-2">
+                                 <input type="text" id="csv-match-name" placeholder="MATCH_NAME" class="input-group input !w-auto text-sm">
+                                 <input type="text" id="csv-league-name" placeholder="LEAGUE_NAME" class="input-group input !w-auto text-sm">
+                            </div>
+                         </div>
+                        <div class="overflow-x-auto rounded-lg border border-slate-200">
+                            <table class="min-w-full">
+                                <thead class="bg-slate-50">
+                                    <tr>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Igrač / Igra</th>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Opis 1</th>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Opis 2</th>
+                                        <th scope="col" class="px-6 py-3 text-right text-xs font-semibold text-slate-600 uppercase tracking-wider">Kvota</th>
+                                        <th scope="col" class="px-4 py-3 text-center text-xs font-semibold text-slate-600 uppercase tracking-wider">Ukloni</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="preview-table-body" class="bg-white"></tbody>
+                            </table>
+                        </div>
+                        <div class="flex justify-center mt-8">
+                            <button id="download-csv-btn" class="w-full md:w-auto action-btn success">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-download-cloud"><path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"></path><path d="M12 12v9"></path><path d="m8 17 4 4 4-4"></path></svg>
+                                Preuzmi CSV
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -496,7 +545,9 @@
         const $$ = (selector) => document.querySelectorAll(selector);
         const on = (element, event, handler) => element.addEventListener(event, handler);
         
-        // DOM Element Constants
+        // =================================================================
+        // == DOM Element Constants
+        // =================================================================
         const generateBtn = $('#generate-btn');
         const downloadCsvBtn = $('#download-csv-btn');
         const addPlayerBtn = $('#add-player-btn');
@@ -521,16 +572,30 @@
         const apiDataDisplay = $('#api-data-display');
         const startTourBtn = $('#start-tour-btn');
         const addCustomBetBtn = $('#add-custom-bet-btn');
+        const soccerApiSection = $('#soccer-api-section');
+        const commonActionsPreview = $('#common-actions-preview');
+
+        // Basketball Special Elements
+        const bballMatchSelect = $('#bball-match-select');
+        const bballDomacinInput = $('#bball-domacin');
+        const bballGenerateBtn = $('#bball-generate-btn');
+        const bballDownloadCsvBtn = $('#bball-download-csv-btn');
+        const bballPreviewSection = $('#bball-preview-section');
+        const bballPreviewTableBody = $('#bball-preview-table-body');
 
         
-        // Global State
+        // =================================================================
+        // == Global State
+        // =================================================================
         let playerCounter = 0;
         let allFbrefStats = [];
         let apiEvents = [];
         let availableApiPlayers = [];
         let currentTab = 'players';
+        let bballSelectedMatch = null;
+        let bballGeneratedSpecials = [];
 
-        // --- Math & Stat Helpers ---
+        // --- Math & Stat Helpers (omitted for brevity, same as before) ---
         let factCache = [1];
         const factorial = n => {
             if (n < 0) return NaN;
@@ -555,38 +620,29 @@
         };
         const probOver = (lambda, k) => 1 - poissonCDF(lambda, k);
         const probUnder = (lambda, k) => poissonCDF(lambda, k - 1);
-        
-        // Funkcija za izračunavanje verovatnoće da igrač postigne gol i njegov tim pobedi
         const scoreAndWin = (muTeam, muOpponent, playerLambda, maxGoals = 10) => {
-            let s = playerLambda / muTeam; // Udeo igrača u golovima tima
+            let s = playerLambda / muTeam;
             let prob = 0;
-            
             for (let gTeam = 0; gTeam <= maxGoals; gTeam++) {
                 let pTeam = poissonPMF(muTeam, gTeam);
                 for (let gOpponent = 0; gOpponent <= maxGoals; gOpponent++) {
                     let pOpponent = poissonPMF(muOpponent, gOpponent);
-                    
                     if (gTeam > gOpponent) {
-                        // Verovatnoća da igrač da gol ako tim postigne gTeam golova
                         let pPlayer = 1 - Math.pow(1 - s, gTeam);
                         prob += pTeam * pOpponent * pPlayer;
                     }
                 }
             }
-            
             return prob;
         };
-        
         const get24hTime = (date = new Date()) => {
             const hours = String(date.getHours()).padStart(2, '0');
             const minutes = String(date.getMinutes()).padStart(2, '0');
             return `${hours}:${minutes}`;
         };
-        
         const formatOdd = (o) => {
             if (o === null || isNaN(o)) return 'N/A';
             if (o <= 1.01) return '1.01';
-
             let roundedOdd;
             if (o >= 10) {
                 roundedOdd = Math.round(o * 4) / 4;
@@ -595,14 +651,12 @@
             }
             return roundedOdd.toFixed(2);
         };
-
         const applyMarginToOdd = (odd, margin) => {
             if (!odd || margin <= 0 || odd <= 1) return odd;
             const p = 1 / odd;
             const ap = p * (1 + (margin / 100));
             return probToOdd(ap);
         }
-        
         const parsePlayerNameFromOutcome = (outcome) => {
             if (!outcome || !outcome.startsWith('player=')) return 'Unknown Player';
             let namePart = outcome.split('=')[1];
@@ -613,7 +667,7 @@
         };
 
 
-        // --- Player Card Management ---
+        // --- Player Card Management (omitted for brevity, same as before) ---
         const createShotLineHTML = (threshold, odd, isCustom = false) => {
             const thresholdInput = isCustom 
                 ? `<input type="number" class="shots-threshold w-full" value="${threshold || 1}" min="1" step="1">`
@@ -639,7 +693,6 @@
                  </div>
             </div>`;
         };
-
         const addPlayer = (playerData = {}) => {
             playerCounter++;
             const cardId = `player-card-${playerCounter}`;
@@ -654,7 +707,6 @@
                         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
                     </button>
                 </div>
-                
                 <div class="grid md:grid-cols-2 gap-x-8 gap-y-6">
                     <div class="space-y-4">
                         <h4>1. Pronađi i popuni statistiku</h4>
@@ -721,7 +773,6 @@
                 `;
              return playerCard;
         };
-
         const populateStandardShotLines = (card) => {
             const container = card.querySelector('.shots-lines-container');
             const statInput = card.querySelector('.player-stat[data-stat="Sh_90"]');
@@ -732,7 +783,7 @@
                 return;
             };
 
-            container.innerHTML = ''; // Clear existing lines
+            container.innerHTML = '';
             for (let k = 1; k <= 5; k++) {
                 const prob_less_than_k = poissonCDF(lambda, k - 1);
                 const probability = 1 - prob_less_than_k;
@@ -741,7 +792,6 @@
                 container.insertAdjacentHTML('beforeend', createShotLineHTML(k, formatOdd(finalOdd), false));
             }
         };
-        
         const selectPlayerFromDb = (inputElement, player) => {
             const card = inputElement.closest('.player-card');
             card.querySelector('[data-stat="Gls_90"]').value = player.Gls_90 || 0;
@@ -753,7 +803,6 @@
             card.querySelector('[data-stat="Fld_90"]').value = player.Fld_90 || 0;
             populateStandardShotLines(card);
         };
-        
         const showAutocomplete = (inputElement) => {
             const suggestionsContainer = inputElement.nextElementSibling;
             const value = inputElement.value.toLowerCase();
@@ -784,7 +833,6 @@
             });
             suggestionsContainer.classList.remove('hidden');
         };
-        
         const calculateOddForLine = (button) => {
              const line = button.closest('.shot-line');
              const card = button.closest('.player-card');
@@ -806,7 +854,6 @@
              let finalOdd = applyMarginToOdd(rawOdd, margin);
              oddInput.value = formatOdd(finalOdd);
         };
-
         const calculateSingleBaseOdd = (button) => {
             const { oddType, statType } = button.dataset;
             const card = button.closest('.player-card');
@@ -841,7 +888,7 @@
             }
         };
 
-        // --- Main Calculation Logic ---
+        // --- Main Calculation Logic (Soccer) ---
         const calculatePlayerOdds = () => {
             let allResults = [];
             const playerCards = document.querySelectorAll('.player-card');
@@ -880,7 +927,6 @@
                     createBet(playerName, 'daje', 'gol', baseOdds['daje-gol'], false);
                     createBet(playerName, 'daje gol', 'do 10. min', probToOdd(1 - poissonPMF(playerLambda / 9, 0)));
                     
-                    // New logic for 2+ and 3+ goals with specific margins
                     const prob_2plus = 1 - p_poisson[0] - p_poisson[1];
                     let odd_2plus_raw = probToOdd(prob_2plus);
                     let odd_2plus_final = applyMarginToOdd(odd_2plus_raw, 20);
@@ -998,14 +1044,12 @@
             });
             return allResults;
         };
-        
         const calculateCorrelatedProbability = (probA, probB, boost = 1.15) => {
             const p_less_likely = Math.min(probA, probB);
             const p_more_likely = Math.max(probA, probB);
             const boosted_p = Math.min(p_more_likely * boost, 0.99);
             return p_less_likely * boosted_p;
         };
-
         const calculateSpecialOdds = () => {
             const results = [];
             const margin = parseFloat($('#bookmaker-margin').value) || 0;
@@ -1034,7 +1078,6 @@
                 results.push({ player: 'Specijal', market2: m2, market3: m3, odd: formatOdd(finalOdd) });
             };
             
-            // Probabilities
             const p_gg = (parseFloat($('#special-gg-prob').value) / 100) || (1 - Math.exp(-goalsLambda * 0.35));
             const p_3plus_goals = event.prob_3plus_goals || probOver(goalsLambda, 2);
             const p_under_4_goals = probUnder(goalsLambda, 4);
@@ -1053,16 +1096,12 @@
             const p_penal = oddToProb(penaltyOdd);
             const p_red = oddToProb(redCardOdd);
             const lambdaPerMin = goalsLambda / 90;
-
-            // NEW: Probabilities based on goal lambda
             const prob_sub_goal = 1 - Math.exp(-goalsLambda * 0.15);
             const prob_header_goal = 1 - Math.exp(-goalsLambda * 0.17);
             const prob_outside_box_goal = 1 - Math.exp(-goalsLambda * 0.12);
             const prob_free_kick_goal = 1 - Math.exp(-goalsLambda * 0.05);
             const prob_injury_1h = 1 - Math.exp(-lambdaPerMin * 3);
             const prob_injury_2h = 1 - Math.exp(-lambdaPerMin * 6);
-
-            // Calculations
             createSpecialBet('Oba tima 2+ kartona', '', p_2plus_cards_team * p_2plus_cards_team);
             createSpecialBet('Penal i crveni karton', '', calculateCorrelatedProbability(p_penal, p_red, 1.1));
             createSpecialBet('Penal ili crveni karton', '', p_penal + p_red - (p_penal * p_red));
@@ -1082,19 +1121,14 @@
             createSpecialBet('Sudija gleda VAR', '', 0.4);
             createSpecialBet('Precka ili stativa', 'na mecu', 0.5);
             createSpecialBet('Dosudjen penal', 'za oba tima', (p_penal/2) * (p_penal/2));
-            
-            // UPDATED: Use new probabilities
             createSpecialBet('Gol u nadoknadi', '2. pol.', prob_injury_2h);
             createSpecialBet('Gol u nadoknadi', '1. pol.', prob_injury_1h);
             createSpecialBet('Izmena postize gol', '', prob_sub_goal);
             createSpecialBet('Gol iz slobodnog udarca', '', prob_free_kick_goal);
             createSpecialBet('Gol izvan 16m', '', prob_outside_box_goal);
             createSpecialBet('Gol glavom na mecu', '', prob_header_goal);
-
-            // NEW GAMES
             const p_4plus_corners_team = probOver(cornersLambda / 2, 3);
             const p_3plus_corners_team = probOver(cornersLambda / 2, 2);
-
             createSpecialBet('GG', 'i 8+ kornera', p_gg * p_8plus_corners);
             createSpecialBet('3+ golova', 'i 8+ kornera', p_3plus_goals * p_8plus_corners);
             createSpecialBet('GG', 'i 3+ kartona i 9+ kornera', p_gg * p_3plus_cards * p_9plus_corners);
@@ -1612,8 +1646,100 @@
             apiDataDisplay.querySelector('pre').textContent = formattedApiText || 'Nema dostupnih podataka za ove markete.';
         };
 
+        // =================================================================
+        // == BASKETBALL SPECIALS LOGIC
+        // =================================================================
+        const bballSpecialsToGenerate = [
+            'Ukupno skokova', 'Ukupno asistencija', 'Ukupno postignutih 3P',
+            'Ukupno izgubljenih lopti', '1. minut oba tima daju kos', '1. min oba tima daju trojku',
+            'Igrac postize 20+ poena', '1. min 3+ poena', '1. min 4+ poena'
+        ];
 
-        // --- Event Listeners ---
+        async function fetchBasketballApiEvents() {
+            try {
+                const response = await fetch('/api/basketball-events');
+                if (!response.ok) throw new Error(`API Error: ${response.statusText}`);
+                const data = await response.json();
+                
+                if (data.events && data.events.length > 0) {
+                    bballMatchSelect.innerHTML = '<option value="">-- Izaberi Meč --</option>';
+                    data.events.forEach(event => {
+                        const option = document.createElement('option');
+                        option.value = JSON.stringify({
+                            name: event.name,
+                            home: event.competitors.find(c => c.home).name,
+                        });
+                        option.textContent = event.name;
+                        bballMatchSelect.appendChild(option);
+                    });
+                } else {
+                    bballMatchSelect.innerHTML = '<option value="">Nema dostupnih mečeva</option>';
+                }
+            } catch (error) {
+                console.error('Error fetching basketball events:', error);
+                bballMatchSelect.innerHTML = '<option value="">Greška pri učitavanju</option>';
+            }
+        }
+
+        function generateBballSpecials() {
+            if (!bballSelectedMatch) {
+                alert('Molimo Vas izaberite košarkaški meč.');
+                return;
+            }
+            bballGeneratedSpecials = bballSpecialsToGenerate;
+            bballPreviewTableBody.innerHTML = '';
+            bballGeneratedSpecials.forEach(special => {
+                const row = bballPreviewTableBody.insertRow();
+                row.className = 'bg-white even:bg-slate-50';
+                row.innerHTML = `
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-800">${bballSelectedMatch.name}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-600">${special}</td>
+                `;
+            });
+            bballPreviewSection.classList.remove('hidden');
+        }
+
+        function downloadBballCsv() {
+            if (!bballSelectedMatch || bballGeneratedSpecials.length === 0) {
+                alert('Molimo Vas prvo generišite specijal.');
+                return;
+            }
+            let csvContent = "MATCH_NAME,LEAGUE_NAME\n";
+            bballGeneratedSpecials.forEach(special => {
+                const matchName = `"${bballSelectedMatch.name.replace(/"/g, '""')}"`;
+                const leagueName = `"${special.replace(/"/g, '""')}"`;
+                csvContent += `${matchName},${leagueName}\n`;
+            });
+            
+            const blob = new Blob([`\uFEFF${csvContent}`], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            const fileName = bballSelectedMatch.name.replace(/[^a-z0-9]/gi, '_').toLowerCase() + '_specials.csv';
+            link.href = URL.createObjectURL(blob);
+            link.download = fileName;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        // =================================================================
+        // == Event Listeners
+        // =================================================================
+        on(bballMatchSelect, 'change', function() {
+            if (this.value) {
+                bballSelectedMatch = JSON.parse(this.value);
+                bballDomacinInput.value = bballSelectedMatch.home;
+                bballPreviewSection.classList.add('hidden');
+            } else {
+                bballSelectedMatch = null;
+                bballDomacinInput.value = '';
+                bballPreviewSection.classList.add('hidden');
+            }
+        });
+        on(bballGenerateBtn, 'click', generateBballSpecials);
+        on(bballDownloadCsvBtn, 'click', downloadBballCsv);
+
+
+        // --- Tab Switching Logic ---
         tabButtons.forEach(button => {
             on(button, 'click', () => {
                 const tab = button.dataset.tab;
@@ -1622,24 +1748,18 @@
                 button.classList.add('active');
                 tabContents.forEach(content => content.classList.remove('active'));
                 $(`#tab-${tab}`).classList.add('active');
-                $('#generate-btn-text').textContent = tab === 'players' ? 'Generiši Kvote' : 'Generiši Specijal Kvote';
-                previewSection.classList.add('hidden');
 
-                const eventSelectOption = eventSelect.options[eventSelect.selectedIndex];
-                if (eventSelectOption && eventSelect.value) {
-                    if (tab === 'specials') {
-                        $('#match-name').value = eventSelectOption.textContent;
-                    } else {
-                        const teamFilterValue = teamFilter.value;
-                        const teamSelectOption = teamSelect.options[teamSelect.selectedIndex];
-                        if (teamFilterValue) {
-                            $('#match-name').value = teamFilterValue;
-                        } else if (teamSelectOption && teamSelect.value !== 'all') {
-                            $('#match-name').value = teamSelectOption.textContent;
-                        } else {
-                            $('#match-name').value = eventSelectOption.textContent;
-                        }
-                    }
+                // Show/hide sections based on tab
+                const isBasketball = tab === 'basketball-specials';
+                soccerApiSection.style.display = isBasketball ? 'none' : 'block';
+                matchDetailsSection.style.display = isBasketball ? 'none' : 'block';
+                commonActionsPreview.style.display = isBasketball ? 'none' : 'block';
+                
+                if(!isBasketball) {
+                    $('#generate-btn-text').textContent = tab === 'players' ? 'Generiši Kvote' : 'Generiši Specijal Kvote';
+                    previewSection.classList.add('hidden');
+                } else {
+                    bballPreviewSection.classList.add('hidden');
                 }
             });
         });
@@ -1784,11 +1904,10 @@
             $('#custom-odd').value = '';
             previewSection.classList.remove('hidden');
         };
-
         on(addCustomBetBtn, 'click', addCustomSpecialBet);
 
 
-        // --- Tour Logic ---
+        // --- Tour Logic (omitted for brevity, same as before) ---
         const tourHighlight = $('#tour-highlight');
         const tourTooltip = $('#tour-tooltip');
         const tourTitle = $('#tour-title');
@@ -1798,7 +1917,6 @@
         const tourSkip = $('#tour-skip');
         const tourClose = $('#tour-close');
         let currentStep = 0;
-
         const tourSteps = [
             { element: '#fetch-api-btn', title: 'Korak 1: Učitavanje Mečeva', text: 'Kliknite ovde da biste preuzeli najnovije mečeve i kvote sa API-ja.', position: 'bottom' },
             { element: '#competition-select', title: 'Korak 2: Izbor Takmičenja', text: 'Nakon učitavanja, ovde izaberite željeno takmičenje.', position: 'bottom' },
@@ -1808,7 +1926,6 @@
             { element: '#generate-btn', title: 'Korak 6: Generisanje Kvota', text: 'Kada ste dodali sve željene igrače, kliknite ovde da generišete sve kvote.', position: 'top' },
             { element: '#download-csv-btn', title: 'Korak 7: Preuzimanje CSV Fajla', text: 'Na kraju, preuzmite generisane kvote u CSV formatu klikom na ovo dugme.', position: 'top' },
         ];
-
         function showStep(index) {
             const step = tourSteps[index];
             const targetElement = $(step.element);
@@ -1861,17 +1978,14 @@
             tourPrev.style.display = index === 0 ? 'none' : 'inline-block';
             tourNext.textContent = index === tourSteps.length - 1 ? 'Završi' : 'Dalje';
         }
-
         function startTour() {
             currentStep = 0;
             showStep(currentStep);
         }
-
         function endTour() {
             tourHighlight.classList.add('hidden');
             tourTooltip.classList.add('hidden');
         }
-
         function makeDraggable(element) {
             let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
             const header = element.querySelector("h3");
@@ -1903,7 +2017,6 @@
                 document.onmousemove = null;
             };
         }
-
         on(startTourBtn, 'click', startTour);
         on(tourSkip, 'click', endTour);
         on(tourClose, 'click', endTour);
@@ -1932,6 +2045,7 @@
             apiPlayerAdder.classList.add('hidden');
             apiPlayerSelect.innerHTML = '';
             fetchFbrefData();
+            fetchBasketballApiEvents(); // Fetch basketball data on load
             makeDraggable(tourTooltip);
         };
     </script>
