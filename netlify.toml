@@ -2,12 +2,13 @@
   functions = "netlify/functions"
   publish = "/"
 
+# Ruta za fudbalske mečeve (iz originalne aplikacije)
 [[redirects]]
   from = "/api/events"
   to = "/.netlify/functions/fetch-events"
   status = 200
 
-# Add this new redirect for basketball
+# Nova ruta za košarkaške mečeve
 [[redirects]]
   from = "/api/basketball-events"
   to = "/.netlify/functions/fetch-basketball-events"
