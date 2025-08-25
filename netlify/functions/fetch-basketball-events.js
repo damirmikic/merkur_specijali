@@ -9,8 +9,8 @@ exports.handler = async function(event, context) {
     };
   }
 
-  // Novi, statički URL za specifično takmičenje
-  const API_ENDPOINT = `https://sports-api.cloudbet.com/pub/v2/odds/competitions/basketball-international-european-championship?markets=basketball.moneyline&markets=basketball.totals&markets=basketball.player_points&players=true&limit=1000`;
+  // Ažuriran URL da uključi i market za poene u prvom poluvremenu
+  const API_ENDPOINT = `https://sports-api.cloudbet.com/pub/v2/odds/competitions/basketball-international-european-championship?markets=basketball.moneyline&markets=basketball.totals&markets=basketball.player_points&markets=basketball.1st_half_team_total&players=true&limit=1000`;
 
   try {
     const response = await fetch(API_ENDPOINT, {
