@@ -10,7 +10,8 @@ exports.handler = async function(event, context) {
   
   // It's best practice to store sensitive keys as environment variables
   const API_KEY = process.env.API_KEY;
-  response = await fetch(API_ENDPOINT, {
+  try {
+    const response = await fetch(API_ENDPOINT, {
       headers: {
         "Accept": "application/json",
         "X-API-Key": API_KEY
