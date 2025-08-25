@@ -117,7 +117,6 @@
                             <select id="bet-market-select"></select>
                         </div>
 
-                        <!-- Player selection dropdown - hidden by default -->
                         <div id="player-selection-group" class="input-group md:col-span-2 hidden">
                             <label for="player-select">Izaberi Igrača</label>
                             <select id="player-select"></select>
@@ -198,7 +197,7 @@
             const bettingMarkets = [
                 'Ukupno skokova', 'Ukupno asistencija', 'Ukupno postignutih 3P',
                 'Ukupno izgubljenih lopti', '1. minut oba tima daju kos', '1. min oba tima daju trojku',
-                'Igrac postize 20+ poena', '1. min 3+ poena', '1. min 4+ poena'
+                'Igrac postize 20+ poena', '1. minut 1+ poen', '1. min 3+ poena', '1. min 4+ poena'
             ];
 
             function populateBettingMarkets() {
@@ -255,7 +254,7 @@
                         let optionText = player.name;
                         
                         if (playerPointsMarket) {
-                            const playerMarket = playerPointsMarket.find(p => p.params.includes(player.name.toLowerCase().replace(' ', '-')));
+                            const playerMarket = playerPointsMarket.find(p => p.params.includes(player.name.toLowerCase().replace(/ /g, '-')));
                             if (playerMarket) {
                                 const totalMatch = playerMarket.params.match(/total=([\d.]+)/);
                                 if (totalMatch && totalMatch[1]) {
@@ -394,19 +393,96 @@
                 document.body.removeChild(link);
             }
 
+            function findMainLineTotal(selections) {
+                if (!selections || selections.length === 0) return 0;
+                
+                let minDiff = Infinity;
+                let mainLineTotal = 0;
+
+                const totals = {};
+                selections.forEach(sel => {
+                    const totalMatch = sel.params.match(/total=([\d.]+)/);
+                    if (totalMatch) {
+                        const total = totalMatch[1];
+                        if (!totals[total]) totals[total] = {};
+                        totals[total][sel.outcome] = sel.price;
+                    }
+                });
+
+                for (const total in totals) {
+                    if (totals[total].over && totals[total].under) {
+                        const diff = Math.abs(totals[total].over - totals[total].under);
+                        if (diff < minDiff) {
+                            minDiff = diff;
+                            mainLineTotal = parseFloat(total);
+                        }
+                    }
+                }
+                return mainLineTotal;
+            }
+
+            function calculateFirstMinuteOdds() {
+                const matchIndex = bballMatchSelect.value;
+                if (matchIndex === "" || matchIndex === null) return;
+
+                const selectedEvent = competitionData.events[matchIndex];
+                const market = selectedEvent.markets?.['basketball.1st_half_team_total'];
+                if (!market) {
+                    betOdd1Input.value = '';
+                    return;
+                }
+
+                const homeSelections = market.submarkets['period=1h&period=q1&period=q2&team=home']?.selections;
+                const awaySelections = market.submarkets['period=1h&period=q1&period=q2&team=away']?.selections;
+
+                const homeTotal = findMainLineTotal(homeSelections);
+                const awayTotal = findMainLineTotal(awaySelections);
+                
+                if (homeTotal === 0 || awayTotal === 0) {
+                    betOdd1Input.value = '';
+                    return;
+                }
+
+                const totalPoints1H = homeTotal + awayTotal;
+                const lambdaPerMinute = totalPoints1H / 20; // Assuming 20 minute half
+                const probZeroPoints = Math.exp(-lambdaPerMinute);
+                const probOnePlusPoints = 1 - probZeroPoints;
+                const odd = 1 / probOnePlusPoints;
+
+                betOdd1Input.value = odd.toFixed(2);
+            }
+
+            function toggleInputs(disable) {
+                betHandicapInput.disabled = disable;
+                betOddUnderInput.disabled = disable;
+                betOddOverInput.disabled = disable;
+                betOdd1Input.readOnly = disable;
+            }
+
             bballMatchSelect.addEventListener('change', (e) => {
                 const matchIndex = e.target.value;
-                if (betMarketSelect.value === 'Igrac postize 20+ poena') {
+                const marketType = betMarketSelect.value;
+                if (marketType === 'Igrac postize 20+ poena') {
                     populatePlayerDropdown(matchIndex);
+                } else if (marketType === '1. minut 1+ poen') {
+                    calculateFirstMinuteOdds();
                 }
             });
 
             betMarketSelect.addEventListener('change', (e) => {
-                if (e.target.value === 'Igrac postize 20+ poena') {
+                const marketType = e.target.value;
+                if (marketType === 'Igrac postize 20+ poena') {
                     playerSelectionGroup.classList.remove('hidden');
                     populatePlayerDropdown(bballMatchSelect.value);
+                    toggleInputs(false);
+                } else if (marketType === '1. minut 1+ poen') {
+                    playerSelectionGroup.classList.add('hidden');
+                    calculateFirstMinuteOdds();
+                    toggleInputs(true);
                 } else {
                     playerSelectionGroup.classList.add('hidden');
+                    toggleInputs(false);
+                    betOdd1Input.value = '';
                 }
             });
 
