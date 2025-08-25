@@ -113,7 +113,7 @@
                     <h3 class="font-bold text-lg text-slate-800 mb-4">2. Dodavanje Igara</h3>
                     <div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
                         <div class="input-group md:col-span-2">
-                            <label for="bet-market-select">Vrsta igre (LEAGUE_NAME)</label>
+                            <label for="bet-market-select">Vrsta igre</label>
                             <select id="bet-market-select"></select>
                         </div>
                         <div class="input-group">
@@ -147,8 +147,8 @@
                         <table class="min-w-full">
                             <thead class="bg-slate-50">
                                 <tr>
-                                    <th scope="col" class="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Domacin</th>
-                                    <th scope="col" class="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Gost</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Domacin (Naziv Meča)</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Gost (Vrsta Igre)</th>
                                     <th scope="col" class="px-6 py-3 text-center text-xs font-semibold text-slate-600 uppercase tracking-wider">GR</th>
                                     <th scope="col" class="px-6 py-3 text-center text-xs font-semibold text-slate-600 uppercase tracking-wider">U</th>
                                     <th scope="col" class="px-6 py-3 text-center text-xs font-semibold text-slate-600 uppercase tracking-wider">O</th>
@@ -217,7 +217,7 @@
                         competitionData.events.forEach((event, index) => {
                             if (event.home && event.home.name) {
                                 const option = document.createElement('option');
-                                option.value = index; // Use index to find the event later
+                                option.value = index;
                                 option.textContent = event.name;
                                 bballMatchSelect.appendChild(option);
                             }
@@ -233,16 +233,18 @@
 
             function addBetToGenerator() {
                 const matchIndex = bballMatchSelect.value;
-                if (!matchIndex) {
+                if (matchIndex === "" || matchIndex === null) {
                     alert('Molimo Vas izaberite meč.');
                     return;
                 }
 
                 const selectedEvent = competitionData.events[matchIndex];
                 const bet = {
-                    matchName: competitionData.name, // MATCH_NAME is competition
-                    domacin: betMarketSelect.value, // Domacin is LEAGUE_NAME
-                    gost: selectedEvent.name, // Gost is the actual match name
+                    matchName: competitionData.name,
+                    leagueName: betMarketSelect.value,
+                    domacin: selectedEvent.name,
+                    gost: betMarketSelect.value,
+                    cutoffTime: selectedEvent.cutoffTime,
                     gr: betHandicapInput.value || '',
                     u: betOddUnderInput.value || '',
                     o: betOddOverInput.value || '',
@@ -252,7 +254,7 @@
                 generatedBets.push(bet);
                 renderPreviewTable();
                 
-                // Reset input fields
+                // Reset input fields for next entry
                 betHandicapInput.value = '';
                 betOdd1Input.value = '';
                 betOddUnderInput.value = '';
@@ -304,28 +306,42 @@
                 // Add MATCH_NAME row
                 csvContent += `MATCH_NAME:${generatedBets[0].matchName},,,,,,,,,,,,\n`;
 
-                generatedBets.forEach(bet => {
-                    const now = new Date();
-                    const date = `${now.getDate().toString().padStart(2, '0')}.${(now.getMonth() + 1).toString().padStart(2, '0')}.${now.getFullYear()}`;
-                    const time = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+                // Group bets by LEAGUE_NAME
+                const groupedBets = generatedBets.reduce((acc, bet) => {
+                    if (!acc[bet.leagueName]) {
+                        acc[bet.leagueName] = [];
+                    }
+                    acc[bet.leagueName].push(bet);
+                    return acc;
+                }, {});
 
-                    const rowData = [
-                        date,
-                        time,
-                        '', // Sifra
-                        `"${bet.domacin.replace(/"/g, '""')}"`, // Domacin (LEAGUE_NAME)
-                        `"${bet.gost.replace(/"/g, '""')}"`, // Gost (Match Name)
-                        bet['1'],
-                        '', // X
-                        '', // 2
-                        bet.gr,
-                        bet.u,
-                        bet.o,
-                        '', // Yes
-                        ''  // No
-                    ];
-                    csvContent += rowData.join(',') + '\n';
-                });
+                for (const leagueName in groupedBets) {
+                    // Add LEAGUE_NAME row
+                    csvContent += `LEAGUE_NAME:${leagueName},,,,,,,,,,,,\n`;
+                    
+                    groupedBets[leagueName].forEach(bet => {
+                        const kickoff = new Date(bet.cutoffTime);
+                        const date = `${kickoff.getDate().toString().padStart(2, '0')}.${(kickoff.getMonth() + 1).toString().padStart(2, '0')}.${kickoff.getFullYear()}`;
+                        const time = `${kickoff.getHours().toString().padStart(2, '0')}:${kickoff.getMinutes().toString().padStart(2, '0')}`;
+
+                        const rowData = [
+                            date,
+                            time,
+                            '', // Sifra
+                            `"${bet.domacin.replace(/"/g, '""')}"`, // Domacin (Match Name)
+                            `"${bet.gost.replace(/"/g, '""')}"`, // Gost (Betting Market)
+                            bet['1'],
+                            '', // X
+                            '', // 2
+                            bet.gr,
+                            bet.u,
+                            bet.o,
+                            '', // Yes
+                            ''  // No
+                        ];
+                        csvContent += rowData.join(',') + '\n';
+                    });
+                }
                 
                 const blob = new Blob([`\uFEFF${csvContent}`], { type: 'text/csv;charset=utf-8;' });
                 const link = document.createElement('a');
