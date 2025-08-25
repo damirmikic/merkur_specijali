@@ -1,6 +1,13 @@
 exports.handler = async function(event, context) {
-  // Najbolja praksa je čuvanje osetljivih ključeva kao environment variable
-  const API_KEY = process.env.CLOUDBET_API_KEY || 'eyJhbGciOiJSUzI1NiIsImtpZCI6IkhKcDkyNnF3ZXBjNnF3LU9rMk4zV05pXzBrRFd6cEdwTzAxNlRJUjdRWDAiLCJ0eXAiOiJKV1QifQ.eyJhY2Nlc3NfdGllciI6InRyYWRpbmciLCJleHAiOjIwNjE1Mzc1MDIsImlhdCI6MTc0NjE3NzUwMiwianRpIjoiNTU1ODk0NjgtZjJhZi00ZGQ3LWE3MTQtZjNiNjgyMWU4OGRkIiwic3ViIjoiOGYwYTk5YTEtNTFhZi00YzJlLWFlNDUtY2MxNjgwNDVjZTc3IiwidGVuYW50IjoiY2xvdWRiZXQiLCJdWlkIjoiOGYwYTk5YTEtNTFhZi00YzJlLWFlNDUtY2MxNjgwNDVjZTc3In0.BW_nXSwTkxTI7C-1UzgxWLnNzo9Bo1Ed8hI9RfVLnrJa6sfsMyvQ1NrtT5t6i_emwhkRHU1hY-9i6c2c5AI4fc2mRLSNBujvrfbVHX67uB58E8TeSOZUBRi0eqfLBL7sYl1JNPZzhFkDBCBNFJZJpn40FIjrtIiPd-G5ClaaSMRWrFUDiwA1NmyxHSfkfRpeRSnfk15qck7zSIeNeITzPbD7kZGDIeStmcHuiHfcQX3NaHaI0gyw60wmDgan83NpYQYRVLQ9C4icbNhel4n5H5FGFAxQS8IcvynqV8f-vz2t4BRGuYXBU8uhdYKgezhyQrSvX6NpwNPBJC8CWo2fA';
+  // Korišćenje istog API ključa kao za fudbal
+  const API_KEY = process.env.API_KEY;
+
+  if (!API_KEY) {
+    return {
+      statusCode: 500,
+      body: JSON.stringify({ error: 'API ključ nije konfigurisan u Netlify environment variables.' }),
+    };
+  }
 
   // Izračunavanje vremenskih oznaka za naredna 3 dana
   const nowInSeconds = Math.floor(Date.now() / 1000);
@@ -17,9 +24,11 @@ exports.handler = async function(event, context) {
     });
 
     if (!response.ok) {
+      // Vraća detaljniju poruku o grešci ako API vrati grešku
+      const errorBody = await response.text();
       return {
         statusCode: response.status,
-        body: JSON.stringify({ error: `API zahtev nije uspeo sa statusom ${response.status}` })
+        body: JSON.stringify({ error: `API zahtev nije uspeo sa statusom ${response.status}: ${errorBody}` })
       };
     }
 
