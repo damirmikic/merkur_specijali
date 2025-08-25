@@ -1,5 +1,5 @@
 exports.handler = async function(event, context) {
-  // Korišćenje istog API ključa kao za fudbal
+  // Korišćenje API ključa iz Netlify environment variables
   const API_KEY = process.env.API_KEY;
 
   if (!API_KEY) {
@@ -9,11 +9,8 @@ exports.handler = async function(event, context) {
     };
   }
 
-  // Izračunavanje vremenskih oznaka za naredna 3 dana
-  const nowInSeconds = Math.floor(Date.now() / 1000);
-  const threeDaysFromNowInSeconds = nowInSeconds + (3 * 24 * 60 * 60);
-
-  const API_ENDPOINT = `https://sports-api.cloudbet.com/pub/v2/odds/events?sport=basketball&from=${nowInSeconds}&to=${threeDaysFromNowInSeconds}&live=false&markets=basketball.moneyline&markets=basketball.player_points&markets=basketball.totals&players=true&limit=100`;
+  // Novi, statički URL za specifično takmičenje
+  const API_ENDPOINT = `https://sports-api.cloudbet.com/pub/v2/odds/competitions/basketball-international-european-championship?markets=basketball.moneyline&markets=basketball.totals&markets=basketball.player_points&players=true&limit=1000`;
 
   try {
     const response = await fetch(API_ENDPOINT, {
@@ -24,7 +21,6 @@ exports.handler = async function(event, context) {
     });
 
     if (!response.ok) {
-      // Vraća detaljniju poruku o grešci ako API vrati grešku
       const errorBody = await response.text();
       return {
         statusCode: response.status,
@@ -32,7 +28,14 @@ exports.handler = async function(event, context) {
       };
     }
 
-    const data = await response.json();
+    let data = await response.json();
+
+    // Filtriranje događaja - isključuju se svi koji su tipa 'EVENT_TYPE_OUTRIGHT'
+    if (data && data.events && Array.isArray(data.events)) {
+        const filteredEvents = data.events.filter(event => event.type !== 'EVENT_TYPE_OUTRIGHT');
+        data.events = filteredEvents;
+    }
+
     return {
       statusCode: 200,
       body: JSON.stringify(data)
