@@ -1,5 +1,14 @@
-# netlify.toml
-
 [build]
-  # The 'base' line has been removed.
   functions = "netlify/functions"
+  publish = "/"
+
+[[redirects]]
+  from = "/api/events"
+  to = "/.netlify/functions/fetch-events"
+  status = 200
+
+# Add this new redirect for basketball
+[[redirects]]
+  from = "/api/basketball-events"
+  to = "/.netlify/functions/fetch-basketball-events"
+  status = 200
