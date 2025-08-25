@@ -510,8 +510,8 @@
                     return;
                 }
 
-                const lambda_home = (homeTotal / 20) * 0.95;
-                const lambda_away = (awayTotal / 20) * 0.95;
+                const lambda_home = (homeTotal / 20) * 0.7;
+                const lambda_away = (awayTotal / 20) * 0.7;
                 
                 lambdaHomeDisplay.textContent = lambda_home.toFixed(4);
                 lambdaAwayDisplay.textContent = lambda_away.toFixed(4);
@@ -522,7 +522,9 @@
 
                 switch(marketType) {
                     case '1. minut oba tima daju kos':
-                        probability = (1 - Math.exp(-lambda_home)) * (1 - Math.exp(-lambda_away));
+                        const prob_home_2_plus = 1 - poissonPMF(lambda_home, 0) - poissonPMF(lambda_home, 1);
+                        const prob_away_2_plus = 1 - poissonPMF(lambda_away, 0) - poissonPMF(lambda_away, 1);
+                        probability = prob_home_2_plus * prob_away_2_plus;
                         break;
                     case '1. min 3+ poena':
                         probability = probOver(mu, 2);
@@ -558,7 +560,6 @@
                     return;
                 }
 
-                let calculatedHandicap = 0;
                 let lambda = 0;
                 switch(marketType) {
                     case 'Ukupno postignutih 2P':
@@ -572,10 +573,9 @@
                         break;
                 }
                 
-                calculatedHandicap = Math.floor(lambda) + 0.5;
+                const calculatedHandicap = Math.floor(lambda) + 0.5;
                 betHandicapInput.value = calculatedHandicap.toFixed(1);
 
-                // Calculate odds using Poisson
                 const prob_over = probOver(lambda, Math.floor(lambda));
                 const prob_under = 1 - prob_over;
 
@@ -595,7 +595,6 @@
                 playerSelectionGroup.classList.add('hidden');
                 calculationDisplay.classList.add('hidden');
                 
-                // Reset fields
                 betHandicapInput.value = '';
                 betOdd1Input.value = '';
                 betOddUnderInput.value = '';
