@@ -208,7 +208,8 @@
             let generatedBets = [];
 
             const bettingMarkets = [
-                'Ukupno skokova', 'Ukupno asistencija', 'Ukupno postignutih 3P',
+                'Ukupno skokova', 'Ukupno asistencija', 
+                'Ukupno postignutih 2P', 'Ukupno postignutih 3P', 'Ukupno postignutih sl. bacanja',
                 'Ukupno izgubljenih lopti', '1. min oba tima daju trojku',
                 'Igrac postize 20+ poena',
                 '1. minut oba tima daju kos', 
@@ -462,9 +463,9 @@
 
             function calculateAndDisplayOdds(marketType) {
                 const matchIndex = bballMatchSelect.value;
+                betOdd1Input.value = ''; // Clear previous value
                 if (matchIndex === "" || matchIndex === null) {
                     calculationDisplay.classList.add('hidden');
-                    betOdd1Input.value = '';
                     return;
                 }
 
@@ -474,7 +475,6 @@
                     lambdaHomeDisplay.textContent = 'N/A';
                     lambdaAwayDisplay.textContent = 'N/A';
                     calculationDisplay.classList.remove('hidden');
-                    betOdd1Input.value = '';
                     alert('Podaci za izračunavanje (1st half team total) nisu dostupni za ovaj meč.');
                     return;
                 }
@@ -489,7 +489,6 @@
                     lambdaHomeDisplay.textContent = 'N/A';
                     lambdaAwayDisplay.textContent = 'N/A';
                     calculationDisplay.classList.remove('hidden');
-                    betOdd1Input.value = '';
                     return;
                 }
 
@@ -521,42 +520,57 @@
                 if (probability > 0) {
                     const odd = 1 / probability;
                     betOdd1Input.value = odd.toFixed(2);
-                } else {
-                    betOdd1Input.value = '';
                 }
             }
 
-            function toggleInputs(disable) {
-                betHandicapInput.disabled = disable;
-                betOddUnderInput.disabled = disable;
-                betOddOverInput.disabled = disable;
-                betOdd1Input.readOnly = disable;
+            function calculateAndSetHandicap(marketType) {
+                const matchIndex = bballMatchSelect.value;
+                betHandicapInput.value = ''; // Clear previous value
+                if (matchIndex === "" || matchIndex === null) return;
+
+                const selectedEvent = competitionData.events[matchIndex];
+                const totalsMarket = selectedEvent.markets?.['basketball.totals']?.submarkets?.['period=ot&period=ft']?.selections;
+                const mainLineTotal = findMainLineTotal(totalsMarket);
+
+                if (mainLineTotal === 0) {
+                    alert('Glavna granica za ukupan broj poena nije dostupna za ovaj meč.');
+                    return;
+                }
+
+                let calculatedHandicap = 0;
+                switch(marketType) {
+                    case 'Ukupno postignutih 2P':
+                        calculatedHandicap = (mainLineTotal * 0.49) / 2;
+                        break;
+                    case 'Ukupno postignutih 3P':
+                        calculatedHandicap = (mainLineTotal * 0.34) / 3;
+                        break;
+                    case 'Ukupno postignutih sl. bacanja':
+                        calculatedHandicap = (mainLineTotal * 0.17) / 1;
+                        break;
+                }
+                betHandicapInput.value = calculatedHandicap.toFixed(1);
             }
-            
+
             function handleMarketSelectionChange() {
                  const marketType = betMarketSelect.value;
-                 const autoCalcMarkets = [
-                    '1. minut oba tima daju kos',
-                    '1. min 3+ poena',
-                    '1. min 4+ poena',
-                    '1. min 5+ poena'
-                ];
+                 const autoCalcOddMarkets = ['1. minut oba tima daju kos', '1. min 3+ poena', '1. min 4+ poena', '1. min 5+ poena'];
+                 const autoCalcHandicapMarkets = ['Ukupno postignutih 2P', 'Ukupno postignutih 3P', 'Ukupno postignutih sl. bacanja'];
+
+                betOdd1Input.readOnly = false;
+                betHandicapInput.readOnly = false;
+                playerSelectionGroup.classList.add('hidden');
+                calculationDisplay.classList.add('hidden');
 
                 if (marketType === 'Igrac postize 20+ poena') {
                     playerSelectionGroup.classList.remove('hidden');
                     populatePlayerDropdown(bballMatchSelect.value);
-                    toggleInputs(false);
-                    betOdd1Input.value = '';
-                    calculationDisplay.classList.add('hidden');
-                } else if (autoCalcMarkets.includes(marketType)) {
-                    playerSelectionGroup.classList.add('hidden');
+                } else if (autoCalcOddMarkets.includes(marketType)) {
                     calculateAndDisplayOdds(marketType);
-                    toggleInputs(true);
-                } else {
-                    playerSelectionGroup.classList.add('hidden');
-                    toggleInputs(false);
-                    betOdd1Input.value = '';
-                    calculationDisplay.classList.add('hidden');
+                    betOdd1Input.readOnly = true;
+                } else if (autoCalcHandicapMarkets.includes(marketType)) {
+                    calculateAndSetHandicap(marketType);
+                    betHandicapInput.readOnly = true;
                 }
             }
 
