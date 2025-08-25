@@ -549,7 +549,8 @@
                         calculatedHandicap = (mainLineTotal * 0.17) / 1;
                         break;
                 }
-                betHandicapInput.value = calculatedHandicap.toFixed(1);
+                // Zaokruživanje na najbližu polovinu poena
+                betHandicapInput.value = (Math.floor(calculatedHandicap) + 0.5).toFixed(1);
             }
 
             function handleMarketSelectionChange() {
