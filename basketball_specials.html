@@ -144,27 +144,33 @@
             async function fetchBasketballApiEvents() {
                 try {
                     const response = await fetch('/api/basketball-events');
-                    if (!response.ok) throw new Error(`API greška: ${response.statusText}`);
+                    if (!response.ok) {
+                        const errorData = await response.json();
+                        throw new Error(`API greška: ${errorData.error || response.statusText}`);
+                    }
                     
                     const data = await response.json();
                     
                     if (data.events && data.events.length > 0) {
                         bballMatchSelect.innerHTML = '<option value="">-- Izaberi Meč --</option>';
                         data.events.forEach(event => {
-                            const option = document.createElement('option');
-                            option.value = JSON.stringify({
-                                name: event.name,
-                                home: event.competitors.find(c => c.home).name,
-                            });
-                            option.textContent = event.name;
-                            bballMatchSelect.appendChild(option);
+                            // Provera da li događaj ima 'home' tim, što ga kvalifikuje kao meč
+                            if (event.home && event.home.name) {
+                                const option = document.createElement('option');
+                                option.value = JSON.stringify({
+                                    name: event.name,
+                                    home: event.home.name, // ISPRAVLJENO: Pristupa se direktno event.home.name
+                                });
+                                option.textContent = event.name;
+                                bballMatchSelect.appendChild(option);
+                            }
                         });
                     } else {
                         bballMatchSelect.innerHTML = '<option value="">Nema dostupnih mečeva</option>';
                     }
                 } catch (error) {
                     console.error('Greška pri učitavanju košarkaških mečeva:', error);
-                    bballMatchSelect.innerHTML = '<option value="">Greška pri učitavanju</option>';
+                    bballMatchSelect.innerHTML = `<option value="">Greška: ${error.message}</option>`;
                 }
             }
 
