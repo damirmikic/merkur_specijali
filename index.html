@@ -323,13 +323,12 @@
                 <!-- Players Tab Content -->
                 <div id="tab-players" class="tab-content active">
                     <form id="odds-form">
-                        <section class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end mb-8">
+                        <section class="grid grid-cols-1 md:grid-cols-3 gap-4 items-end mb-8">
                              <div class="input-group">
                                 <label for="team-select">Tim</label>
                                 <select id="team-select" disabled></select>
                             </div>
                             <div class="input-group"><label for="team-win-odd">Kvota na Pobedu</label><input type="number" id="team-win-odd" step="0.01" value="1.85"></div>
-                            <div class="input-group"><label for="correlation-factor" class="text-xs sm:text-sm">Faktor Kor. (Gol/Pobeda)</label><input type="number" id="correlation-factor" step="0.1" value="1.3"></div>
                             <div class="input-group"><label for="bookmaker-margin">Margina (%)</label><input type="number" id="bookmaker-margin" step="0.1" value="10"></div>
                         </section>
                         
@@ -368,6 +367,14 @@
                                     <label for="special-goals-lambda">Oč. Golova (λ)</label>
                                     <input type="number" id="special-goals-lambda" step="0.1" value="2.5" title="Očekivani ukupan broj golova na meču">
                                 </div>
+                                <div class="input-group">
+                                    <label for="special-goals-lambda-home">Oč. Golova Domaćin</label>
+                                    <input type="number" id="special-goals-lambda-home" step="0.1" value="1.4" readonly title="Očekivani broj golova za domaćina">
+                                </div>
+                                <div class="input-group">
+                                    <label for="special-goals-lambda-away">Oč. Golova Gost</label>
+                                    <input type="number" id="special-goals-lambda-away" step="0.1" value="1.1" readonly title="Očekivani broj golova za gosta">
+                                </div>
                                  <div class="input-group">
                                     <label for="special-corners-lambda">Oč. Kornera (λ)</label>
                                     <input type="number" id="special-corners-lambda" step="0.1" value="10.5" title="Očekivani ukupan broj kornera na meču">
@@ -401,6 +408,15 @@
                                     <input type="number" id="special-red-card-odd" step="0.01" value="4.0" title="Kvota da će biti dodeljen crveni karton na meču">
                                 </div>
                              </div>
+                        </section>
+                         <section class="mb-8 p-6 bg-slate-50 border border-slate-200 rounded-lg">
+                            <h3 class="font-bold text-lg text-slate-800 mb-4">Dodaj Prilagođenu Igru</h3>
+                            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                                <div class="input-group"><label for="custom-market2">Opis 1</label><input type="text" id="custom-market2" placeholder="Npr. GG"></div>
+                                <div class="input-group"><label for="custom-market3">Opis 2</label><input type="text" id="custom-market3" placeholder="Npr. i 3+"></div>
+                                <div class="input-group"><label for="custom-odd">Kvota</label><input type="number" id="custom-odd" step="0.01" placeholder="Npr. 1.85"></div>
+                                <button type="button" id="add-custom-bet-btn" class="h-10 px-4 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg shadow-md transition-all">Dodaj Igru</button>
+                            </div>
                         </section>
                          <section class="mb-8 p-6 bg-slate-50 border border-slate-200 rounded-lg">
                             <h3 class="font-bold text-lg text-slate-800 mb-4">API Podaci za Meč</h3>
@@ -504,6 +520,8 @@
         const toggleApiDataBtn = $('#toggle-api-data-btn');
         const apiDataDisplay = $('#api-data-display');
         const startTourBtn = $('#start-tour-btn');
+        const addCustomBetBtn = $('#add-custom-bet-btn');
+
         
         // Global State
         let playerCounter = 0;
@@ -513,20 +531,51 @@
         let currentTab = 'players';
 
         // --- Math & Stat Helpers ---
-        const factorial = n => { if (n < 0) return NaN; if (n === 0) return 1; let r = 1; for (let i = 2; i <= n; i++) r *= i; return r; };
-        const poissonProbability = (l, k) => (l < 0) ? 0 : (Math.pow(l, k) * Math.exp(-l)) / factorial(k);
+        let factCache = [1];
+        const factorial = n => {
+            if (n < 0) return NaN;
+            if (factCache[n] !== undefined) return factCache[n];
+            let val = factCache[factCache.length - 1];
+            for (let i = factCache.length; i <= n; i++) {
+                val *= i;
+                factCache[i] = val;
+            }
+            return val;
+        };
+        const poissonPMF = (mu, k) => Math.exp(-mu) * Math.pow(mu, k) / factorial(k);
         const probToOdd = p => (p <= 0 || p >= 1) ? null : 1 / p;
         const oddToProb = o => (o <= 1) ? 1 : 1 / o;
         const getLambdaFromProb = p => (p <= 0 || p >= 1) ? 0 : -Math.log(1 - p);
         const poissonCDF = (lambda, k) => {
             let sum = 0;
             for (let i = 0; i <= k; i++) {
-                sum += poissonProbability(lambda, i);
+                sum += poissonPMF(lambda, i);
             }
             return sum;
         };
         const probOver = (lambda, k) => 1 - poissonCDF(lambda, k);
         const probUnder = (lambda, k) => poissonCDF(lambda, k - 1);
+        
+        // Funkcija za izračunavanje verovatnoće da igrač postigne gol i njegov tim pobedi
+        const scoreAndWin = (muTeam, muOpponent, playerLambda, maxGoals = 10) => {
+            let s = playerLambda / muTeam; // Udeo igrača u golovima tima
+            let prob = 0;
+            
+            for (let gTeam = 0; gTeam <= maxGoals; gTeam++) {
+                let pTeam = poissonPMF(muTeam, gTeam);
+                for (let gOpponent = 0; gOpponent <= maxGoals; gOpponent++) {
+                    let pOpponent = poissonPMF(muOpponent, gOpponent);
+                    
+                    if (gTeam > gOpponent) {
+                        // Verovatnoća da igrač da gol ako tim postigne gTeam golova
+                        let pPlayer = 1 - Math.pow(1 - s, gTeam);
+                        prob += pTeam * pOpponent * pPlayer;
+                    }
+                }
+            }
+            
+            return prob;
+        };
         
         const get24hTime = (date = new Date()) => {
             const hours = String(date.getHours()).padStart(2, '0');
@@ -597,6 +646,7 @@
             const playerCard = document.createElement('div');
             playerCard.className = 'player-card';
             playerCard.id = cardId;
+            playerCard.dataset.teamSide = playerData.teamSide || '';
             playerCard.innerHTML = `
                 <div class="flex justify-between items-start mb-4">
                     <h3 class="text-lg font-bold text-slate-700">Igrač ${playerCounter}</h3>
@@ -774,7 +824,7 @@
             if (oddType === 'pasovi-lambda') {
                 oddInput.value = statValue.toFixed(2);
             } else if (oddType === 'zuti-karton') {
-                const prob_1_plus_fouls = 1 - poissonProbability(statValue, 0);
+                const prob_1_plus_fouls = 1 - poissonPMF(statValue, 0);
                 const odd_1_plus_fouls = probToOdd(prob_1_plus_fouls);
                 if (odd_1_plus_fouls) {
                     let rawOdd = odd_1_plus_fouls * 3.2;
@@ -784,7 +834,7 @@
                     oddInput.value = '';
                 }
             } else {
-                const probability = 1 - poissonProbability(statValue, 0);
+                const probability = 1 - poissonPMF(statValue, 0);
                 let rawOdd = probToOdd(probability);
                 let finalOdd = applyMarginToOdd(rawOdd, margin);
                 oddInput.value = formatOdd(finalOdd);
@@ -795,18 +845,23 @@
         const calculatePlayerOdds = () => {
             let allResults = [];
             const playerCards = document.querySelectorAll('.player-card');
-            const margin = parseFloat($('#bookmaker-margin').value) || 0;
-            const teamWinOdd = parseFloat($('#team-win-odd').value) || 0;
-            const correlationFactor = parseFloat($('#correlation-factor').value) || 1.0;
+            let margin = parseFloat($('#bookmaker-margin').value) || 0;
+            
+            const eventId = eventSelect.value;
+            const event = apiEvents.find(e => e.id == eventId);
 
             const createBet = (playerName, m2, m3, o, amf = true) => {
-                const finalOddValue = amf ? applyMarginToOdd(o, margin) : o;
+                const currentMargin = amf ? margin : 0;
+                let finalOddValue = applyMarginToOdd(o, currentMargin);
                 
                 if (finalOddValue === null || finalOddValue <= 1) return;
 
                 const isShotsMarket = m2.includes('suteva');
                 if (isShotsMarket && finalOddValue > 7) return;
-                if (!isShotsMarket && finalOddValue > 150) return;
+
+                if (finalOddValue > 60) {
+                    finalOddValue = 60;
+                }
 
                 allResults.push({ player: playerName, market2: m2, market3: m3, odd: formatOdd(finalOddValue) });
             };
@@ -819,51 +874,98 @@
                 card.querySelectorAll('.player-base-odd').forEach(input => baseOdds[input.dataset.oddType] = parseFloat(input.value) || 0);
                 
                 if (baseOdds['daje-gol'] > 0) {
-                    const lambda = getLambdaFromProb(oddToProb(baseOdds['daje-gol']));
-                    const p = [poissonProbability(lambda, 0), poissonProbability(lambda, 1), poissonProbability(lambda, 2)];
+                    const playerLambda = getLambdaFromProb(oddToProb(baseOdds['daje-gol']));
+                    const p_poisson = [poissonPMF(playerLambda, 0), poissonPMF(playerLambda, 1), poissonPMF(playerLambda, 2)];
+                    
                     createBet(playerName, 'daje', 'gol', baseOdds['daje-gol'], false);
-                    createBet(playerName, 'daje gol', 'do 10. min', probToOdd(1 - poissonProbability(lambda / 9, 0)));
-                    createBet(playerName, 'daje', '2+ golova', probToOdd(1 - p[0] - p[1]));
-                    createBet(playerName, 'daje', '3+ golova', probToOdd(1 - p[0] - p[1] - p[2]));
-                    createBet(playerName, 'daje gol', 'u 1. poluvremenu', probToOdd(1 - poissonProbability(lambda * 0.44, 0)));
-                    createBet(playerName, 'daje gol', 'u 2. poluvremenu', probToOdd(1 - poissonProbability(lambda * 0.56, 0)));
-                    createBet(playerName, 'daje gol', 'u oba pol.', probToOdd((1 - poissonProbability(lambda * 0.44, 0)) * (1 - poissonProbability(lambda * 0.56, 0))));
+                    createBet(playerName, 'daje gol', 'do 10. min', probToOdd(1 - poissonPMF(playerLambda / 9, 0)));
+                    
+                    // New logic for 2+ and 3+ goals with specific margins
+                    const prob_2plus = 1 - p_poisson[0] - p_poisson[1];
+                    let odd_2plus_raw = probToOdd(prob_2plus);
+                    let odd_2plus_final = applyMarginToOdd(odd_2plus_raw, 20);
+                    createBet(playerName, 'daje', '2+ golova', odd_2plus_final, false);
+
+                    const prob_3plus = 1 - p_poisson[0] - p_poisson[1] - p_poisson[2];
+                    let odd_3plus_raw = probToOdd(prob_3plus);
+                    let odd_3plus_final = applyMarginToOdd(odd_3plus_raw, 30);
+                    createBet(playerName, 'daje', '3+ golova', odd_3plus_final, false);
+
+                    const lambda_1h = playerLambda * 0.44;
+                    const lambda_2h = playerLambda * 0.56;
+                    
+                    const prob_1h = 1 - poissonPMF(lambda_1h, 0);
+                    const prob_2h = 1 - poissonPMF(lambda_2h, 0);
+
+                    const odd_1h = probToOdd(prob_1h);
+                    const odd_2h = probToOdd(prob_2h);
+                    
+                    const odd_both_halves = (odd_1h && odd_2h) ? odd_1h * odd_2h : null;
+
+                    createBet(playerName, 'daje gol', 'u 1. poluvremenu', odd_1h);
+                    createBet(playerName, 'daje gol', 'u 2. poluvremenu', odd_2h);
+                    createBet(playerName, 'daje gol', 'u oba pol.', odd_both_halves);
+                    
                     createBet(playerName, 'daje', 'prvi gol', baseOdds['daje-gol'] * 2.6);
                     createBet(playerName, 'daje', 'zadnji gol', baseOdds['daje-gol'] * 2.6);
                     
-                    if (teamWinOdd > 1) {
-                        const probPlayerScores = oddToProb(baseOdds['daje-gol']);
-                        const probTeamWins = oddToProb(teamWinOdd);
-                        const probPlayerScoresInWin = probPlayerScores * correlationFactor;
-                        const cappedProbPlayerScoresInWin = Math.min(probPlayerScoresInWin, 0.99);
-                        const combinedProb = cappedProbPlayerScoresInWin * probTeamWins;
-                        const oddScoresAndWins = probToOdd(combinedProb);
-                        createBet(playerName, 'daje gol', 'i tim pobedjuje', oddScoresAndWins, true);
+                    if (event && event.lambdaHome && event.lambdaAway) {
+                        const teamSide = card.dataset.teamSide;
+                        const teamOption = $(`#team-select option[value="${teamSide}"]`);
+                        if(teamOption) {
+                            const teamWinOdd = parseFloat(teamOption.dataset.odd) || 0;
+                            const teamLambda = teamSide === 'home' ? event.lambdaHome : event.lambdaAway;
+                            
+                            if (teamLambda > 0 && teamWinOdd > 1) {
+                                const opponentSide = teamSide === 'home' ? 'away' : 'home';
+                                const opponentLambda = opponentSide === 'home' ? event.lambdaHome : event.lambdaAway;
+                                const probScoresAndWins = scoreAndWin(teamLambda, opponentLambda, playerLambda, 15);
+                                const teamName = teamSide === 'home' ? event.home.name : event.away.name;
+                                createBet(playerName, 'daje gol i', `${teamName} pobedjuje`, probToOdd(probScoresAndWins), true);
+                            }
+                        }
                     }
                 }
                 if (baseOdds['sutevi-okvir-1'] > 0) {
                     const lambda = getLambdaFromProb(oddToProb(baseOdds['sutevi-okvir-1']));
-                    const p = [poissonProbability(lambda, 0), poissonProbability(lambda, 1), poissonProbability(lambda, 2)];
+                    const p = [poissonPMF(lambda, 0), poissonPMF(lambda, 1), poissonPMF(lambda, 2)];
                     createBet(playerName, 'ukupno suteva', 'u okvir gola 1+', baseOdds['sutevi-okvir-1'], false);
-                    createBet(playerName, 'ukupno suteva', 'u okvir gola 2+', probToOdd(1 - p[0] - p[1]));
-                    createBet(playerName, 'ukupno suteva', 'u okvir gola 3+', probToOdd(1 - p[0] - p[1] - p[2]));
+                    createBet(playerName, 'ukupno suteva', 'u okvir gola 2+', probToOdd(1 - p[0] - p[1]), true);
+                    createBet(playerName, 'ukupno suteva', 'u okvir gola 3+', probToOdd(1 - p[0] - p[1] - p[2]), true);
                 }
                 if (baseOdds['faulovi-1'] > 0) {
                     const lambda = getLambdaFromProb(oddToProb(baseOdds['faulovi-1']));
-                    const p = [poissonProbability(lambda, 0), poissonProbability(lambda, 1), poissonProbability(lambda, 2)];
-                    createBet(playerName, 'ukupno nacinjenih', 'faulova 1+', baseOdds['faulovi-1'], false);
-                    createBet(playerName, 'ukupno nacinjenih', 'faulova 2+', probToOdd(1 - p[0] - p[1]));
-                    createBet(playerName, 'ukupno nacinjenih', 'faulova 3+', probToOdd(1 - p[0] - p[1] - p[2]));
+                    const p = [poissonPMF(lambda, 0), poissonPMF(lambda, 1), poissonPMF(lambda, 2)];
+                    const baseOdd = baseOdds['faulovi-1'];
+                    
+                    if (baseOdd < 1.3) {
+                        createBet(playerName, 'ukupno nacinjenih', 'faulova 2+', probToOdd(1 - p[0] - p[1]), true);
+                        let tempMargin = 20;
+                        const tempFinalOdd = applyMarginToOdd(probToOdd(1 - p[0] - p[1] - p[2]), tempMargin);
+                        allResults.push({ player: playerName, market2: 'ukupno nacinjenih', market3: 'faulova 3+', odd: formatOdd(tempFinalOdd) });
+
+                    } else {
+                        createBet(playerName, 'ukupno nacinjenih', 'faulova 1+', baseOdd, false);
+                        createBet(playerName, 'ukupno nacinjenih', 'faulova 2+', probToOdd(1 - p[0] - p[1]), true);
+                    }
                 }
                 if (baseOdds['zuti-karton'] > 0) {
                     createBet(playerName, 'dobija', 'karton', baseOdds['zuti-karton'], false);
                 }
                 if (baseOdds['faulovi-iznudjeni-1'] > 0) {
                     const lambda = getLambdaFromProb(oddToProb(baseOdds['faulovi-iznudjeni-1']));
-                    const p = [poissonProbability(lambda, 0), poissonProbability(lambda, 1), poissonProbability(lambda, 2)];
-                    createBet(playerName, 'ukupno iznudjenih', 'faulova 1+', baseOdds['faulovi-iznudjeni-1'], false);
-                    createBet(playerName, 'ukupno iznudjenih', 'faulova 2+', probToOdd(1 - p[0] - p[1]));
-                    createBet(playerName, 'ukupno iznudjenih', 'faulova 3+', probToOdd(1 - p[0] - p[1] - p[2]));
+                    const p = [poissonPMF(lambda, 0), poissonPMF(lambda, 1), poissonPMF(lambda, 2)];
+                    const baseOdd = baseOdds['faulovi-iznudjeni-1'];
+                    
+                    if (baseOdd < 1.3) {
+                        createBet(playerName, 'ukupno iznudjenih', 'faulova 2+', probToOdd(1 - p[0] - p[1]), true);
+                        let tempMargin = 20;
+                        const tempFinalOdd = applyMarginToOdd(probToOdd(1 - p[0] - p[1] - p[2]), tempMargin);
+                        allResults.push({ player: playerName, market2: 'ukupno iznudjenih', market3: 'faulova 3+', odd: formatOdd(tempFinalOdd) });
+                    } else {
+                        createBet(playerName, 'ukupno iznudjenih', 'faulova 1+', baseOdd, false);
+                        createBet(playerName, 'ukupno iznudjenih', 'faulova 2+', probToOdd(1 - p[0] - p[1]), true);
+                    }
                 }
                 if (baseOdds['pasovi-lambda'] > 0) {
                     const lambda = baseOdds['pasovi-lambda'];
@@ -940,13 +1042,25 @@
             const p_4plus_cards = probOver(cardsLambda, 3);
             const p_2plus_cards_team = probOver(cardsLambda / 2, 1);
             const p_1plus_card_team = probOver(cardsLambda / 2, 0);
+            const p_8plus_corners = probOver(cornersLambda, 7);
+            const p_9plus_corners = probOver(cornersLambda, 8);
             const p_10plus_corners = event.prob_10plus_corners || probOver(cornersLambda, 9);
+            const p_12plus_corners = probOver(cornersLambda, 11);
             const p_15plus_corners = probOver(cornersLambda, 14);
             const p_3plus_corners_half = probOver(cornersLambda * 0.45, 2) * probOver(cornersLambda * 0.55, 2);
             const p_9plus_sot = probOver(sotLambda, 8);
             const p_11plus_sot = probOver(sotLambda, 10);
             const p_penal = oddToProb(penaltyOdd);
             const p_red = oddToProb(redCardOdd);
+            const lambdaPerMin = goalsLambda / 90;
+
+            // NEW: Probabilities based on goal lambda
+            const prob_sub_goal = 1 - Math.exp(-goalsLambda * 0.15);
+            const prob_header_goal = 1 - Math.exp(-goalsLambda * 0.17);
+            const prob_outside_box_goal = 1 - Math.exp(-goalsLambda * 0.12);
+            const prob_free_kick_goal = 1 - Math.exp(-goalsLambda * 0.05);
+            const prob_injury_1h = 1 - Math.exp(-lambdaPerMin * 3);
+            const prob_injury_2h = 1 - Math.exp(-lambdaPerMin * 6);
 
             // Calculations
             createSpecialBet('Oba tima 2+ kartona', '', p_2plus_cards_team * p_2plus_cards_team);
@@ -965,15 +1079,31 @@
             createSpecialBet('15+ kornera', 'i GG', p_15plus_corners * p_gg);
             createSpecialBet('15+ kornera', 'i 3+ golova', p_15plus_corners * p_3plus_goals);
             createSpecialBet('3+ kornera', 'u svakom pol.', p_3plus_corners_half);
-            createSpecialBet('Gol u nadoknadi', '2. pol.', 0.25);
-            createSpecialBet('Gol u nadoknadi', '1. pol.', 0.15);
             createSpecialBet('Sudija gleda VAR', '', 0.4);
-            createSpecialBet('Izmena postize gol', '', 0.2);
             createSpecialBet('Precka ili stativa', 'na mecu', 0.5);
-            createSpecialBet('Gol iz slobodnog udarca', '', 0.08);
-            createSpecialBet('Gol izvan 16m', '', 0.2);
             createSpecialBet('Dosudjen penal', 'za oba tima', (p_penal/2) * (p_penal/2));
-            createSpecialBet('Gol glavom na mecu', '', 0.28);
+            
+            // UPDATED: Use new probabilities
+            createSpecialBet('Gol u nadoknadi', '2. pol.', prob_injury_2h);
+            createSpecialBet('Gol u nadoknadi', '1. pol.', prob_injury_1h);
+            createSpecialBet('Izmena postize gol', '', prob_sub_goal);
+            createSpecialBet('Gol iz slobodnog udarca', '', prob_free_kick_goal);
+            createSpecialBet('Gol izvan 16m', '', prob_outside_box_goal);
+            createSpecialBet('Gol glavom na mecu', '', prob_header_goal);
+
+            // NEW GAMES
+            const p_4plus_corners_team = probOver(cornersLambda / 2, 3);
+            const p_3plus_corners_team = probOver(cornersLambda / 2, 2);
+
+            createSpecialBet('GG', 'i 8+ kornera', p_gg * p_8plus_corners);
+            createSpecialBet('3+ golova', 'i 8+ kornera', p_3plus_goals * p_8plus_corners);
+            createSpecialBet('GG', 'i 3+ kartona i 9+ kornera', p_gg * p_3plus_cards * p_9plus_corners);
+            createSpecialBet('3+ golova', 'i 3+ kartona i 9+ kornera', p_3plus_goals * p_3plus_cards * p_9plus_corners);
+            createSpecialBet('GG', 'i oba tima 4+ kornera', p_gg * p_4plus_corners_team * p_4plus_corners_team);
+            createSpecialBet('GG', 'i oba tima 3+ kornera', p_gg * p_3plus_corners_team * p_3plus_corners_team);
+            createSpecialBet('GG', 'i 4+ kartona i 9+ kornera', p_gg * p_4plus_cards * p_9plus_corners);
+            createSpecialBet('GG', 'i 12+ kornera', p_gg * p_12plus_corners);
+
 
             return results;
         };
@@ -1161,17 +1291,12 @@
                 }
                 const data = await response.json();
                 
-                const competitionsWithRelevantMarkets = data.competitions.map(comp => {
-                    const relevantEvents = comp.events.filter(event => event.markets && (event.markets['soccer.anytime_goalscorer'] || event.markets['soccer.totals.corners']));
-                    return { ...comp, events: relevantEvents };
-                }).filter(comp => comp.events.length > 0);
-
-                apiEvents = competitionsWithRelevantMarkets.flatMap(comp => comp.events.map(event => ({...event, competitionName: comp.name, competitionKey: comp.key })));
+                apiEvents = data.competitions.flatMap(comp => comp.events.map(event => ({...event, competitionName: comp.name, competitionKey: comp.key })));
 
                 if (apiEvents.length === 0) {
-                     apiStatus.textContent = 'Nije pronađen nijedan meč sa relevantnim kvotama (strelci, korneri).';
+                     apiStatus.textContent = 'Nije pronađen nijedan meč.';
                 } else {
-                     populateCompetitionSelect(competitionsWithRelevantMarkets);
+                     populateCompetitionSelect(data.competitions);
                      apiStatus.textContent = `Uspešno učitano ${apiEvents.length} mečeva.`;
                      competitionSelect.disabled = false;
                 }
@@ -1210,10 +1335,12 @@
             }
             const eventsInCompetition = apiEvents.filter(e => e.competitionKey === competitionKey);
             eventsInCompetition.forEach(event => {
-                const option = document.createElement('option');
-                option.value = event.id;
-                option.textContent = `${event.home.name} vs ${event.away.name}`;
-                eventSelect.appendChild(option);
+                if (event && event.home && event.away && event.home.name && event.away.name) {
+                    const option = document.createElement('option');
+                    option.value = event.id;
+                    option.textContent = `${event.home.name} vs ${event.away.name}`;
+                    eventSelect.appendChild(option);
+                }
             });
             eventSelect.disabled = false;
         };
@@ -1224,11 +1351,12 @@
                 apiPlayerAdder.classList.add('hidden');
                 return;
             }
-            players.sort((a,b) => a.name.localeCompare(b.name)).forEach(player => {
+            players.sort((a, b) => a.goalscorerOdd - b.goalscorerOdd).forEach(player => {
                 const option = document.createElement('option');
                 option.value = player.name;
                 option.textContent = `${player.name} (${player.goalscorerOdd})`;
                 option.dataset.odd = player.goalscorerOdd;
+                option.dataset.teamSide = player.teamSide;
                 apiPlayerSelect.appendChild(option);
             });
             apiPlayerAdder.classList.remove('hidden');
@@ -1276,7 +1404,7 @@
             return { lambdaHome: totalLambdaCorners * 0.55, lambdaAway: totalLambdaCorners * 0.45 };
         };
 
-        const findMarketLine = (market, submarket) => {
+        const findMarketLine = (event, market, submarket) => {
             const selections = event.markets?.[market]?.submarkets?.[submarket]?.selections;
             if (!selections) return null;
 
@@ -1295,6 +1423,10 @@
                     }
                 }
             }
+            
+            if(!bestLine && uniqueLines.length > 0) {
+                bestLine = uniqueLines[0];
+            }
 
             if (bestLine) {
                 const overSelection = selections.find(s => s.outcome === 'over' && s.params === `total=${bestLine}`);
@@ -1312,6 +1444,56 @@
                 return lambda;
             }
             return null;
+        };
+        
+        const calculateTeamLambdas = (event) => {
+            const matchOddsMarket = event.markets?.['soccer.match_odds']?.submarkets?.['period=ft']?.selections;
+            const totalGoalsLambda = findMarketLine(event, 'soccer.total_goals', 'period=ft');
+
+            if (!matchOddsMarket || !totalGoalsLambda) {
+                return { lambdaHome: null, lambdaAway: null };
+            }
+
+            const homeOdd = matchOddsMarket.find(s => s.outcome === 'home')?.price;
+            const drawOdd = matchOddsMarket.find(s => s.outcome === 'draw')?.price;
+            const awayOdd = matchOddsMarket.find(s => s.outcome === 'away')?.price;
+
+            if (!homeOdd || !drawOdd || !awayOdd) return { lambdaHome: null, lambdaAway: null };
+            
+            const normalizeProb = (oHome, oDraw, oAway) => {
+                let pH_raw = 1 / oHome;
+                let pD_raw = 1 / oDraw;
+                let pA_raw = 1 / oAway;
+                let S = pH_raw + pD_raw + pA_raw;
+                return { pH: pH_raw / S, pD: pD_raw / S, pA: pA_raw / S };
+            };
+            
+            const homeWinProb = (muH, muA) => {
+                let prob = 0;
+                let maxGoals = Math.ceil(muH + muA + 10);
+                for (let i = 1; i <= maxGoals; i++) {
+                    prob += poissonPMF(muH, i) * poissonCDF(muA, i - 1);
+                }
+                return prob;
+            };
+
+            let { pH } = normalizeProb(homeOdd, drawOdd, awayOdd);
+            let a = 1e-6;
+            let b = totalGoalsLambda - 1e-6;
+            if (a >= b) return { lambdaHome: totalGoalsLambda / 2, lambdaAway: totalGoalsLambda / 2 };
+
+            let mid, fmid;
+            while (b - a > 1e-6) {
+                mid = (a + b) / 2;
+                let muH = mid;
+                let muA = totalGoalsLambda - muH;
+                fmid = homeWinProb(muH, muA) - pH;
+                if (fmid > 0) b = mid;
+                else a = mid;
+            }
+            let muH = (a + b) / 2;
+            let muA = totalGoalsLambda - muH;
+            return { lambdaHome: muH, lambdaAway: muA };
         };
 
         const populateMatchData = (eventId) => {
@@ -1347,7 +1529,8 @@
                  goalscorerSelections.forEach(selection => {
                     if (selection.status === 'SELECTION_ENABLED') {
                         const playerName = parsePlayerNameFromOutcome(selection.outcome);
-                        availableApiPlayers.push({ name: playerName, goalscorerOdd: selection.price, teamSide: 'all' });
+                        const playerInfo = Object.values(event.players || {}).find(p => p.name === playerName);
+                        availableApiPlayers.push({ name: playerName, goalscorerOdd: selection.price, teamSide: playerInfo ? playerInfo.team.toLowerCase() : 'unknown' });
                     }
                  });
             }
@@ -1373,9 +1556,9 @@
                 ggInput.readOnly = false;
             }
 
-            const goalsLambda = findMarketLine('soccer.total_goals', 'period=ft');
-            const cornersLambda = findMarketLine('soccer.total_corners', 'period=ft_corners');
-            const cardsLambda = findMarketLine('soccer.totals.cards', 'period=ft');
+            const goalsLambda = findMarketLine(event, 'soccer.total_goals', 'period=ft');
+            const cornersLambda = findMarketLine(event, 'soccer.total_corners', 'period=ft_corners');
+            const cardsLambda = findMarketLine(event, 'soccer.totals.cards', 'period=ft');
 
             const over2_5_goals = event.markets?.['soccer.total_goals']?.submarkets?.['period=ft']?.selections.find(s => s.params === 'total=2.5' && s.outcome === 'over');
             if (over2_5_goals) event.prob_3plus_goals = oddToProb(over2_5_goals.price);
@@ -1387,11 +1570,17 @@
             setLambdaInput($('#special-corners-lambda'), cornersLambda, 10.5);
             setLambdaInput($('#special-cards-lambda'), cardsLambda, 4.5);
             
+            const { lambdaHome, lambdaAway } = calculateTeamLambdas(event);
+            event.lambdaHome = lambdaHome;
+            event.lambdaAway = lambdaAway;
+            setLambdaInput($('#special-goals-lambda-home'), lambdaHome, (goalsLambda || 2.5) / 2);
+            setLambdaInput($('#special-goals-lambda-away'), lambdaAway, (goalsLambda || 2.5) / 2);
+
             const totalCorners = parseFloat($('#special-corners-lambda').value);
-            const { lambdaHome, lambdaAway } = calculateTeamCornerLambdas(event, totalCorners);
+            const { lambdaHome: cornerLambdaHome, lambdaAway: cornerLambdaAway } = calculateTeamCornerLambdas(event, totalCorners);
             
-            setLambdaInput($('#special-corners-lambda-home'), lambdaHome, totalCorners * 0.55);
-            setLambdaInput($('#special-corners-lambda-away'), lambdaAway, totalCorners * 0.45);
+            setLambdaInput($('#special-corners-lambda-home'), cornerLambdaHome, totalCorners * 0.55);
+            setLambdaInput($('#special-corners-lambda-away'), cornerLambdaAway, totalCorners * 0.45);
 
             // Populate API data display
             let formattedApiText = '';
@@ -1435,6 +1624,23 @@
                 $(`#tab-${tab}`).classList.add('active');
                 $('#generate-btn-text').textContent = tab === 'players' ? 'Generiši Kvote' : 'Generiši Specijal Kvote';
                 previewSection.classList.add('hidden');
+
+                const eventSelectOption = eventSelect.options[eventSelect.selectedIndex];
+                if (eventSelectOption && eventSelect.value) {
+                    if (tab === 'specials') {
+                        $('#match-name').value = eventSelectOption.textContent;
+                    } else {
+                        const teamFilterValue = teamFilter.value;
+                        const teamSelectOption = teamSelect.options[teamSelect.selectedIndex];
+                        if (teamFilterValue) {
+                            $('#match-name').value = teamFilterValue;
+                        } else if (teamSelectOption && teamSelect.value !== 'all') {
+                            $('#match-name').value = teamSelectOption.textContent;
+                        } else {
+                            $('#match-name').value = eventSelectOption.textContent;
+                        }
+                    }
+                }
             });
         });
 
@@ -1447,6 +1653,15 @@
             const odd = selectedOption.dataset.odd;
             if (odd) $('#team-win-odd').value = odd;
             
+            if (currentTab === 'players') {
+                if (e.target.value === 'all' || !selectedOption.textContent) {
+                    const eventSelectOption = eventSelect.options[eventSelect.selectedIndex];
+                    $('#match-name').value = eventSelectOption.textContent || '';
+                } else {
+                    $('#match-name').value = selectedOption.textContent;
+                }
+            }
+
             const selectedTeamSide = e.target.value;
             const playersToDisplay = selectedTeamSide === 'all' 
                 ? availableApiPlayers 
@@ -1459,12 +1674,13 @@
             if (!selectedOption || !selectedOption.value) return;
             const playerName = selectedOption.value;
             const goalscorerOdd = selectedOption.dataset.odd;
+            const teamSide = selectedOption.dataset.teamSide;
             const existingPlayers = Array.from(document.querySelectorAll('.player-name-search')).map(input => input.value);
             if (existingPlayers.includes(playerName)) {
                 alert(`Igrač ${playerName} je već dodat.`);
                 return;
             }
-            const playerCard = addPlayer({ name: playerName, goalscorerOdd });
+            const playerCard = addPlayer({ name: playerName, goalscorerOdd, teamSide });
             playersContainer.appendChild(playerCard);
             const fbrefPlayer = allFbrefStats.find(p => p.Player.toLowerCase() === playerName.toLowerCase());
             if (fbrefPlayer) {
@@ -1523,13 +1739,54 @@
         });
         
         on(teamFilter, 'change', () => {
+             if (currentTab !== 'players') return;
             const selectedTeam = teamFilter.value;
-            if (selectedTeam) $('#match-name').value = selectedTeam;
+            if (selectedTeam) {
+                $('#match-name').value = selectedTeam;
+            } else {
+                const eventSelectOption = eventSelect.options[eventSelect.selectedIndex];
+                if (eventSelectOption && eventSelect.value) {
+                    $('#match-name').value = eventSelectOption.textContent;
+                }
+            }
         });
         
         on(toggleApiDataBtn, 'click', () => {
             apiDataDisplay.classList.toggle('hidden');
         });
+
+        const addCustomSpecialBet = () => {
+            const market2 = $('#custom-market2').value;
+            const market3 = $('#custom-market3').value;
+            const odd = $('#custom-odd').value;
+
+            if (!market2 || !odd) {
+                alert('Molimo Vas unesite bar Opis 1 i Kvotu.');
+                return;
+            }
+            
+            const row = previewTableBody.insertRow();
+            row.className = 'bg-white even:bg-slate-50';
+            row.innerHTML = `
+                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-800">Specijal</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-600">${market2}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-500">${market3}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-right text-sm">
+                    <input type="number" class="editable-odd" step="0.01" value="${odd}" />
+                </td>
+                <td class="px-4 py-4 text-center">
+                    <button type="button" class="remove-preview-row" title="Ukloni ovu kvotu iz CSV-a">&times;</button>
+                </td>
+            `;
+
+            $('#custom-market2').value = '';
+            $('#custom-market3').value = '';
+            $('#custom-odd').value = '';
+            previewSection.classList.remove('hidden');
+        };
+
+        on(addCustomBetBtn, 'click', addCustomSpecialBet);
+
 
         // --- Tour Logic ---
         const tourHighlight = $('#tour-highlight');
