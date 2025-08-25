@@ -427,13 +427,25 @@
             function poissonPMF(mu, k) {
                 return (Math.pow(mu, k) * Math.exp(-mu)) / factorial(k);
             }
+            
+            function poissonCDF(mu, k) {
+                let sum = 0;
+                for (let i = 0; i <= k; i++) {
+                    sum += poissonPMF(mu, i);
+                }
+                return sum;
+            }
 
             function probOver(mu, k) {
-                let cumulativeProb = 0;
-                for (let i = 0; i <= k; i++) {
-                    cumulativeProb += poissonPMF(mu, i);
-                }
-                return 1 - cumulativeProb;
+                return 1 - poissonCDF(mu, k);
+            }
+
+            function applyMargin(odd, margin = 8) {
+                if (!odd || odd <= 1) return odd;
+                const probability = 1 / odd;
+                const marginFactor = 1 + (margin / 100);
+                const newProbability = probability * marginFactor;
+                return 1 / newProbability;
             }
 
             function findMainLineData(selections) {
@@ -524,8 +536,9 @@
                 }
 
                 if (probability > 0) {
-                    const odd = 1 / probability;
-                    betOdd1Input.value = odd.toFixed(2);
+                    const rawOdd = 1 / probability;
+                    const finalOdd = applyMargin(rawOdd);
+                    betOdd1Input.value = finalOdd.toFixed(2);
                 }
             }
 
@@ -546,21 +559,31 @@
                 }
 
                 let calculatedHandicap = 0;
+                let lambda = 0;
                 switch(marketType) {
                     case 'Ukupno postignutih 2P':
-                        calculatedHandicap = (mainLineData.total * 0.49) / 2;
+                        lambda = (mainLineData.total * 0.49) / 2;
                         break;
                     case 'Ukupno postignutih 3P':
-                        calculatedHandicap = (mainLineData.total * 0.34) / 3;
+                        lambda = (mainLineData.total * 0.34) / 3;
                         break;
                     case 'Ukupno postignutih sl. bacanja':
-                        calculatedHandicap = (mainLineData.total * 0.17) / 1;
+                        lambda = (mainLineData.total * 0.17) / 1;
                         break;
                 }
                 
-                betHandicapInput.value = (Math.floor(calculatedHandicap) + 0.5).toFixed(1);
-                betOddOverInput.value = mainLineData.overOdd;
-                betOddUnderInput.value = mainLineData.underOdd;
+                calculatedHandicap = Math.floor(lambda) + 0.5;
+                betHandicapInput.value = calculatedHandicap.toFixed(1);
+
+                // Calculate odds using Poisson
+                const prob_over = probOver(lambda, Math.floor(lambda));
+                const prob_under = 1 - prob_over;
+
+                const raw_odd_over = 1 / prob_over;
+                const raw_odd_under = 1 / prob_under;
+
+                betOddOverInput.value = applyMargin(raw_odd_over).toFixed(2);
+                betOddUnderInput.value = applyMargin(raw_odd_under).toFixed(2);
             }
 
             function handleMarketSelectionChange() {
@@ -569,9 +592,15 @@
                  const autoCalcHandicapMarkets = ['Ukupno postignutih 2P', 'Ukupno postignutih 3P', 'Ukupno postignutih sl. bacanja'];
 
                 betOdd1Input.readOnly = false;
-                betHandicapInput.readOnly = false;
                 playerSelectionGroup.classList.add('hidden');
                 calculationDisplay.classList.add('hidden');
+                
+                // Reset fields
+                betHandicapInput.value = '';
+                betOdd1Input.value = '';
+                betOddUnderInput.value = '';
+                betOddOverInput.value = '';
+
 
                 if (marketType === 'Igrac postize 20+ poena') {
                     playerSelectionGroup.classList.remove('hidden');
