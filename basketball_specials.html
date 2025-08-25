@@ -29,7 +29,7 @@
             background-color: #f9fafb;
             color: #1f2937;
         }
-        .input-group input:disabled {
+        .input-group input:disabled, .input-group input:read-only {
              background-color: #e5e7eb;
              cursor: not-allowed;
         }
@@ -106,6 +106,16 @@
                         <select id="bball-match-select">
                             <option>Učitavanje mečeva...</option>
                         </select>
+                    </div>
+                    <div id="calculation-display" class="mt-4 grid grid-cols-2 gap-4 hidden">
+                        <div>
+                            <label class="text-sm font-medium text-slate-500">Poeni po min. (Domaćin):</label>
+                            <p id="lambda-home-display" class="font-bold text-lg text-blue-600">N/A</p>
+                        </div>
+                        <div>
+                            <label class="text-sm font-medium text-slate-500">Poeni po min. (Gost):</label>
+                            <p id="lambda-away-display" class="font-bold text-lg text-blue-600">N/A</p>
+                        </div>
                     </div>
                 </section>
 
@@ -190,14 +200,21 @@
             const bballDownloadCsvBtn = document.getElementById('bball-download-csv-btn');
             const bballPreviewSection = document.getElementById('bball-preview-section');
             const bballPreviewTableBody = document.getElementById('bball-preview-table-body');
+            const calculationDisplay = document.getElementById('calculation-display');
+            const lambdaHomeDisplay = document.getElementById('lambda-home-display');
+            const lambdaAwayDisplay = document.getElementById('lambda-away-display');
 
             let competitionData = null;
             let generatedBets = [];
 
             const bettingMarkets = [
                 'Ukupno skokova', 'Ukupno asistencija', 'Ukupno postignutih 3P',
-                'Ukupno izgubljenih lopti', '1. minut oba tima daju kos', '1. min oba tima daju trojku',
-                'Igrac postize 20+ poena', '1. minut 1+ poen', '1. min 3+ poena', '1. min 4+ poena'
+                'Ukupno izgubljenih lopti', '1. min oba tima daju trojku',
+                'Igrac postize 20+ poena',
+                '1. minut oba tima daju kos', 
+                '1. min 3+ poena', 
+                '1. min 4+ poena',
+                '1. min 5+ poena'
             ];
 
             function populateBettingMarkets() {
@@ -290,7 +307,6 @@
                     }
                     guestValue = `${selectedPlayer} - ${marketType}`;
                 }
-
 
                 const bet = {
                     matchName: competitionData.name,
@@ -393,12 +409,36 @@
                 document.body.removeChild(link);
             }
 
+            // --- Math & Calculation Helpers ---
+            const factCache = [1];
+            function factorial(n) {
+                if (n < 0) return NaN;
+                if (n > 170) return Infinity;
+                if (factCache[n] !== undefined) return factCache[n];
+                let val = factCache[factCache.length - 1];
+                for (let i = factCache.length; i <= n; i++) {
+                    val *= i;
+                    factCache[i] = val;
+                }
+                return val;
+            }
+
+            function poissonPMF(mu, k) {
+                return (Math.pow(mu, k) * Math.exp(-mu)) / factorial(k);
+            }
+
+            function probOver(mu, k) {
+                let cumulativeProb = 0;
+                for (let i = 0; i <= k; i++) {
+                    cumulativeProb += poissonPMF(mu, i);
+                }
+                return 1 - cumulativeProb;
+            }
+
             function findMainLineTotal(selections) {
                 if (!selections || selections.length === 0) return 0;
-                
                 let minDiff = Infinity;
                 let mainLineTotal = 0;
-
                 const totals = {};
                 selections.forEach(sel => {
                     const totalMatch = sel.params.match(/total=([\d.]+)/);
@@ -408,7 +448,6 @@
                         totals[total][sel.outcome] = sel.price;
                     }
                 });
-
                 for (const total in totals) {
                     if (totals[total].over && totals[total].under) {
                         const diff = Math.abs(totals[total].over - totals[total].under);
@@ -421,35 +460,70 @@
                 return mainLineTotal;
             }
 
-            function calculateFirstMinuteOdds() {
+            function calculateAndDisplayOdds(marketType) {
                 const matchIndex = bballMatchSelect.value;
-                if (matchIndex === "" || matchIndex === null) return;
+                if (matchIndex === "" || matchIndex === null) {
+                    calculationDisplay.classList.add('hidden');
+                    betOdd1Input.value = '';
+                    return;
+                }
 
                 const selectedEvent = competitionData.events[matchIndex];
                 const market = selectedEvent.markets?.['basketball.1st_half_team_total'];
                 if (!market) {
+                    lambdaHomeDisplay.textContent = 'N/A';
+                    lambdaAwayDisplay.textContent = 'N/A';
+                    calculationDisplay.classList.remove('hidden');
                     betOdd1Input.value = '';
+                    alert('Podaci za izračunavanje (1st half team total) nisu dostupni za ovaj meč.');
                     return;
                 }
 
                 const homeSelections = market.submarkets['period=1h&period=q1&period=q2&team=home']?.selections;
                 const awaySelections = market.submarkets['period=1h&period=q1&period=q2&team=away']?.selections;
-
+                
                 const homeTotal = findMainLineTotal(homeSelections);
                 const awayTotal = findMainLineTotal(awaySelections);
-                
+
                 if (homeTotal === 0 || awayTotal === 0) {
+                    lambdaHomeDisplay.textContent = 'N/A';
+                    lambdaAwayDisplay.textContent = 'N/A';
+                    calculationDisplay.classList.remove('hidden');
                     betOdd1Input.value = '';
                     return;
                 }
 
-                const totalPoints1H = homeTotal + awayTotal;
-                const lambdaPerMinute = totalPoints1H / 20; // Assuming 20 minute half
-                const probZeroPoints = Math.exp(-lambdaPerMinute);
-                const probOnePlusPoints = 1 - probZeroPoints;
-                const odd = 1 / probOnePlusPoints;
+                const lambda_home = (homeTotal / 20) * 0.95;
+                const lambda_away = (awayTotal / 20) * 0.95;
+                
+                lambdaHomeDisplay.textContent = lambda_home.toFixed(4);
+                lambdaAwayDisplay.textContent = lambda_away.toFixed(4);
+                calculationDisplay.classList.remove('hidden');
 
-                betOdd1Input.value = odd.toFixed(2);
+                const mu = lambda_home + lambda_away;
+                let probability = 0;
+
+                switch(marketType) {
+                    case '1. minut oba tima daju kos':
+                        probability = (1 - Math.exp(-lambda_home)) * (1 - Math.exp(-lambda_away));
+                        break;
+                    case '1. min 3+ poena':
+                        probability = probOver(mu, 2);
+                        break;
+                    case '1. min 4+ poena':
+                        probability = probOver(mu, 3);
+                        break;
+                    case '1. min 5+ poena':
+                        probability = probOver(mu, 4);
+                        break;
+                }
+
+                if (probability > 0) {
+                    const odd = 1 / probability;
+                    betOdd1Input.value = odd.toFixed(2);
+                } else {
+                    betOdd1Input.value = '';
+                }
             }
 
             function toggleInputs(disable) {
@@ -458,34 +532,36 @@
                 betOddOverInput.disabled = disable;
                 betOdd1Input.readOnly = disable;
             }
+            
+            function handleMarketSelectionChange() {
+                 const marketType = betMarketSelect.value;
+                 const autoCalcMarkets = [
+                    '1. minut oba tima daju kos',
+                    '1. min 3+ poena',
+                    '1. min 4+ poena',
+                    '1. min 5+ poena'
+                ];
 
-            bballMatchSelect.addEventListener('change', (e) => {
-                const matchIndex = e.target.value;
-                const marketType = betMarketSelect.value;
-                if (marketType === 'Igrac postize 20+ poena') {
-                    populatePlayerDropdown(matchIndex);
-                } else if (marketType === '1. minut 1+ poen') {
-                    calculateFirstMinuteOdds();
-                }
-            });
-
-            betMarketSelect.addEventListener('change', (e) => {
-                const marketType = e.target.value;
                 if (marketType === 'Igrac postize 20+ poena') {
                     playerSelectionGroup.classList.remove('hidden');
                     populatePlayerDropdown(bballMatchSelect.value);
                     toggleInputs(false);
-                } else if (marketType === '1. minut 1+ poen') {
+                    betOdd1Input.value = '';
+                    calculationDisplay.classList.add('hidden');
+                } else if (autoCalcMarkets.includes(marketType)) {
                     playerSelectionGroup.classList.add('hidden');
-                    calculateFirstMinuteOdds();
+                    calculateAndDisplayOdds(marketType);
                     toggleInputs(true);
                 } else {
                     playerSelectionGroup.classList.add('hidden');
                     toggleInputs(false);
                     betOdd1Input.value = '';
+                    calculationDisplay.classList.add('hidden');
                 }
-            });
+            }
 
+            bballMatchSelect.addEventListener('change', handleMarketSelectionChange);
+            betMarketSelect.addEventListener('change', handleMarketSelectionChange);
             addBetBtn.addEventListener('click', addBetToGenerator);
             bballDownloadCsvBtn.addEventListener('click', downloadBballCsv);
 
