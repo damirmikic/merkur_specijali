@@ -1,10 +1,11 @@
 /**
  * Netlify serverless function to securely fetch sports events data from the Cloudbet API.
- * This function acts as a proxy to hide the API key from the frontend.
+ * This function now fetches data for a specific list of top leagues.
  */
 exports.handler = async (event, context) => {
   // Get the secret API key from the Netlify environment variables
   const API_KEY = process.env.API_KEY;
+
   // Check if the API key is configured in the Netlify environment
   if (!API_KEY) {
     return {
@@ -13,39 +14,60 @@ exports.handler = async (event, context) => {
     };
   }
   
-  // Set up the time window for the API call (from now to 96 hours in the future)
+  // Set up the time window for the API call (from now to 72 hours in the future)
   const from = Math.floor(Date.now() / 1000);
-  const to = from + (96 * 3600); // 96 hours from now
-
-  // Construct the API URL with all the required markets for both players and specials tabs
-  const API_URL = `https://sports-api.cloudbet.com/pub/v2/odds/events?sport=soccer&from=${from}&to=${to}&live=false&markets=soccer.match_odds&markets=soccer.total_goals&markets=soccer.anytime_goalscorer&markets=soccer.both_teams_to_score&markets=soccer.total_corners&markets=soccer.corner_handicap&players=true&limit=200`;
+  const to = from + (72 * 3600); 
+  
+  // List of specific league keys to fetch
+  const leagueKeys = [
+    'soccer-france-ligue-1',
+    'soccer-england-premier-league',
+    'soccer-international-clubs-uefa-champions-league',
+    'soccer-international-clubs-uefa-europa-league',
+    'soccer-international-clubs-t6eeb-uefa-europa-conference-league',
+    'soccer-germany-bundesliga',
+    'soccer-italy-serie-a',
+    'soccer-spain-laliga',
+    'soccer-serbia-superliga'
+  ];
 
   try {
-    // Fetch data from the Cloudbet API
-    const response = await fetch(API_URL, {
-      headers: { 'X-API-Key': API_KEY }
+    // Create a fetch promise for each league
+    const fetchPromises = leagueKeys.map(key => {
+      const API_URL = `https://sports-api.cloudbet.com/pub/v2/odds/competitions/${key}?from=${from}&to=${to}&players=true&limit=100`;
+      return fetch(API_URL, {
+        headers: { 'X-API-Key': API_KEY }
+      });
     });
 
-    // If the response from the API is not successful, forward the error
-    if (!response.ok) {
-      const errorBody = await response.text();
-      return {
-        statusCode: response.status,
-        body: JSON.stringify({ error: `API Error: ${response.statusText}`, details: errorBody }),
-      };
+    // Execute all fetches concurrently
+    const responses = await Promise.all(fetchPromises);
+
+    const competitions = [];
+    for (const response of responses) {
+      if (response.ok) {
+        const data = await response.json();
+        // The API returns a single competition object per call.
+        // We only add it if it actually has events for the given timeframe.
+        if (data && data.events && data.events.length > 0) {
+          competitions.push(data);
+        }
+      } else {
+        // Log an error but don't fail the entire function, to allow for partial data
+        console.error(`API Error for one of the leagues: ${response.status} ${response.statusText}`);
+      }
     }
 
-    // Parse the JSON response from the API
-    const data = await response.json();
-
-    // Return the fetched data to the frontend
+    // Return the aggregated data in the format the frontend expects
     return {
       statusCode: 200,
-      body: JSON.stringify(data),
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ competitions }),
     };
 
   } catch (error) {
     // Handle any unexpected errors during the fetch operation
+    console.error("Function Error:", error);
     return {
       statusCode: 500,
       body: JSON.stringify({ error: `Function Error: ${error.message}` }),
