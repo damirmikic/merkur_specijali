@@ -218,9 +218,8 @@
                 'Ukupno izgubljenih lopti', '1. min oba tima daju trojku',
                 'Igrac postize 20+ poena',
                 '1. minut oba tima daju kos', 
-                '1. min 3+ poena', 
-                '1. min 4+ poena',
-                '1. min 5+ poena'
+                '1. min - tačno 0 poena', '1. min - tačno 2 poena', '1. min - tačno 3 poena', '1. min - tačno 4 poena',
+                '2. min 8+ poena', '2. min 10+ poena'
             ];
 
             function populateBettingMarkets() {
@@ -532,26 +531,26 @@
 
                 const mu = lambda_home + lambda_away;
                 let probability = 0;
+                let rawOdd = 0;
 
                 switch(marketType) {
                     case '1. minut oba tima daju kos':
                         const prob_home_2_plus = 1 - poissonPMF(lambda_home, 0) - poissonPMF(lambda_home, 1);
                         const prob_away_2_plus = 1 - poissonPMF(lambda_away, 0) - poissonPMF(lambda_away, 1);
                         probability = prob_home_2_plus * prob_away_2_plus;
-                        break;
-                    case '1. min 3+ poena':
-                        probability = probOver(mu, 2);
-                        break;
-                    case '1. min 4+ poena':
-                        probability = probOver(mu, 3);
-                        break;
-                    case '1. min 5+ poena':
-                        probability = probOver(mu, 4);
-                        break;
+                        rawOdd = 1 / probability;
+                        betOdd1Input.value = (rawOdd * 0.80).toFixed(2); // Umanjenje od 20%
+                        return; // Preskačemo standardno dodavanje margine
+                    case '1. min - tačno 0 poena': probability = poissonPMF(mu, 0); break;
+                    case '1. min - tačno 2 poena': probability = poissonPMF(mu, 2); break;
+                    case '1. min - tačno 3 poena': probability = poissonPMF(mu, 3); break;
+                    case '1. min - tačno 4 poena': probability = poissonPMF(mu, 4); break;
+                    case '2. min 8+ poena': probability = probOver(mu * 2, 7); break;
+                    case '2. min 10+ poena': probability = probOver(mu * 2, 9); break;
                 }
 
                 if (probability > 0) {
-                    const rawOdd = 1 / probability;
+                    rawOdd = 1 / probability;
                     const finalOdd = applyMargin(rawOdd);
                     betOdd1Input.value = finalOdd.toFixed(2);
                 }
@@ -612,7 +611,11 @@
 
             function handleMarketSelectionChange() {
                  const marketType = betMarketSelect.value;
-                 const autoCalcOddMarkets = ['1. minut oba tima daju kos', '1. min 3+ poena', '1. min 4+ poena', '1. min 5+ poena'];
+                 const autoCalcOddMarkets = [
+                    '1. minut oba tima daju kos', 
+                    '1. min - tačno 0 poena', '1. min - tačno 2 poena', '1. min - tačno 3 poena', '1. min - tačno 4 poena',
+                    '2. min 8+ poena', '2. min 10+ poena'
+                 ];
                  const autoCalcHandicapMarkets = ['Ukupno postignutih 2P', 'Ukupno postignutih 3P', 'Ukupno postignutih sl. bacanja'];
 
                 betOdd1Input.readOnly = false;
