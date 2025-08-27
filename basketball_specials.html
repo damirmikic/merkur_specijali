@@ -522,36 +522,41 @@
                     return;
                 }
 
-                const lambda_home = (homeTotal / 20) * 0.95;
-                const lambda_away = (awayTotal / 20) * 0.95;
+                const lambda_home_1min = (homeTotal / 20) * 0.95;
+                const lambda_away_1min = (awayTotal / 20) * 0.95;
+                const lambda_home_2min = (homeTotal / 20);
+                const lambda_away_2min = (awayTotal / 20);
                 
-                lambdaHomeDisplay.textContent = lambda_home.toFixed(4);
-                lambdaAwayDisplay.textContent = lambda_away.toFixed(4);
+                lambdaHomeDisplay.textContent = lambda_home_1min.toFixed(4);
+                lambdaAwayDisplay.textContent = lambda_away_1min.toFixed(4);
                 calculationDisplay.classList.remove('hidden');
 
-                const mu = lambda_home + lambda_away;
+                const mu_1min = lambda_home_1min + lambda_away_1min;
+                const mu_2min_total = lambda_home_1min + lambda_away_1min + lambda_home_2min + lambda_away_2min;
+                
                 let probability = 0;
                 let rawOdd = 0;
+                let margin = 10; // Postavljena margina na 10% za ove igre
 
                 switch(marketType) {
                     case '1. minut oba tima daju kos':
-                        const prob_home_2_plus = 1 - poissonPMF(lambda_home, 0) - poissonPMF(lambda_home, 1);
-                        const prob_away_2_plus = 1 - poissonPMF(lambda_away, 0) - poissonPMF(lambda_away, 1);
+                        const prob_home_2_plus = 1 - poissonPMF(lambda_home_1min, 0) - poissonPMF(lambda_home_1min, 1);
+                        const prob_away_2_plus = 1 - poissonPMF(lambda_away_1min, 0) - poissonPMF(lambda_away_1min, 1);
                         probability = prob_home_2_plus * prob_away_2_plus;
                         rawOdd = 1 / probability;
-                        betOdd1Input.value = (rawOdd * 0.80).toFixed(2); // Umanjenje od 20%
-                        return; // Preskačemo standardno dodavanje margine
-                    case '1. min - tačno 0 poena': probability = poissonPMF(mu, 0); break;
-                    case '1. min - tačno 2 poena': probability = poissonPMF(mu, 2); break;
-                    case '1. min - tačno 3 poena': probability = poissonPMF(mu, 3); break;
-                    case '1. min - tačno 4 poena': probability = poissonPMF(mu, 4); break;
-                    case '2. min 8+ poena': probability = probOver(mu * 2, 7); break;
-                    case '2. min 10+ poena': probability = probOver(mu * 2, 9); break;
+                        betOdd1Input.value = (rawOdd * 0.80).toFixed(2);
+                        return; 
+                    case '1. min - tačno 0 poena': probability = poissonPMF(mu_1min, 0); break;
+                    case '1. min - tačno 2 poena': probability = poissonPMF(mu_1min, 2); break;
+                    case '1. min - tačno 3 poena': probability = poissonPMF(mu_1min, 3); break;
+                    case '1. min - tačno 4 poena': probability = poissonPMF(mu_1min, 4); break;
+                    case '2. min 8+ poena': probability = probOver(mu_2min_total, 7); break;
+                    case '2. min 10+ poena': probability = probOver(mu_2min_total, 9); break;
                 }
 
                 if (probability > 0) {
                     rawOdd = 1 / probability;
-                    const finalOdd = applyMargin(rawOdd);
+                    const finalOdd = applyMargin(rawOdd, margin);
                     betOdd1Input.value = finalOdd.toFixed(2);
                 }
             }
