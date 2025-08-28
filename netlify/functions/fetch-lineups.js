@@ -7,13 +7,23 @@ exports.handler = async (event, context) => {
         'Content-Type': 'application/json',
     };
 
+    // Dodajemo User-Agent da bismo se predstavili kao standardni browser
+    const fetchOptions = {
+        headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+        }
+    };
+
     const baseUrl = "http://www.sportsmole.co.uk";
+    // Koristimo timestamp da izbegnemo keširanje stranice
     const initialUrl = `${baseUrl}/index_rhs.html?${new Date().getTime()}`;
     const allLineupsData = [];
 
     try {
-        console.log("Fetching initial page to get links...");
-        const response = await fetch(initialUrl);
+        console.log("--- Lineup Scraper START ---");
+        console.log(`1. Fetching initial page: ${initialUrl}`);
+
+        const response = await fetch(initialUrl, fetchOptions);
         if (!response.ok) throw new Error(`Failed to fetch initial page: ${response.statusText}`);
         
         const html = await response.text();
@@ -30,12 +40,17 @@ exports.handler = async (event, context) => {
             }
         });
 
-        console.log(`Found ${previewLinks.length} preview links. Fetching lineups...`);
+        console.log(`2. Found ${previewLinks.length} preview links.`);
+        if (previewLinks.length === 0) {
+            console.warn("   ! WARNING: No preview links found. The scraper might need updating.");
+        }
 
-        // Process each link to get lineup data
+        let articleCounter = 0;
         for (const link of previewLinks) {
+            articleCounter++;
+            console.log(`\n3. Processing article ${articleCounter}/${previewLinks.length}: ${link}`);
             try {
-                const articleResponse = await fetch(link);
+                const articleResponse = await fetch(link, fetchOptions);
                 if (!articleResponse.ok) continue;
 
                 const articleHtml = await articleResponse.text();
@@ -44,27 +59,34 @@ exports.handler = async (event, context) => {
                 $$('strong').each((i, strongEl) => {
                     const strongText = $$(strongEl).text().trim();
                     if (strongText.includes('possible starting lineup:')) {
+                        console.log(`   ✔️ Found lineup title: "${strongText}"`);
                         const teamName = strongText.replace('possible starting lineup:', '').trim();
                         
-                        // Find the next non-empty <p> tag
                         let lineupNode = $$(strongEl).nextAll('p').first();
                         while(lineupNode.length && lineupNode.text().trim() === '') {
                             lineupNode = lineupNode.next('p');
                         }
 
                         if (lineupNode.length) {
+                            const lineupText = lineupNode.text().trim();
+                            console.log(`   ✅ Successfully extracted lineup: "${lineupText}"`);
                             allLineupsData.push({
                                 team: teamName,
-                                lineup: lineupNode.text().trim(),
+                                lineup: lineupText,
                                 source_url: link
                             });
+                        } else {
+                            console.log(`   ❌ Found title for "${teamName}" but couldn't find the next <p> with the lineup.`);
                         }
                     }
                 });
             } catch (e) {
-                console.warn(`Could not process article: ${link}`, e.message);
+                console.warn(`   ⚠️ Could not process article: ${link}`, e.message);
             }
         }
+
+        console.log(`\n4. Finished processing. Total lineups found: ${allLineupsData.length}`);
+        console.log("--- Lineup Scraper END ---");
 
         return {
             statusCode: 200,
