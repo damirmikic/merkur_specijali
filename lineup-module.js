@@ -1,119 +1,99 @@
 /**
- * Lineup Display Module for Merkur Specijali (with Debugger)
- * Integrates with /api/lineups endpoint
+ * Lineup Display Module for Merkur Specijali
+ * Integrates with /api/lineups endpoint and /api/mappings for team data
  */
 
 class LineupManager {
     constructor() {
         this.lineupData = null;
-        this.teamMappings = this.loadTeamMappings();
+        this.teamMappings = {}; // Počinje prazno, učitava se sa servera
         this.isInitialized = false;
         this.lastUpdate = null;
         this.cacheTimeout = 15 * 60 * 1000; // 15 minutes cache
     }
 
-    loadTeamMappings() {
+    // Učitava mapiranja sa centralne baze
+    async loadTeamMappings() {
         try {
-            const stored = localStorage.getItem('teamMappings');
-            if (stored) return JSON.parse(stored);
+            const response = await fetch('/api/mappings');
+            if (!response.ok) throw new Error('Failed to fetch mappings');
+            const data = await response.json();
+            this.teamMappings = data;
+            return data;
         } catch (error) {
-            console.warn('Error loading team mappings for lineups:', error);
+            console.warn('Could not fetch global mappings for lineups, using empty fallback:', error);
+            this.teamMappings = {};
+            return this.teamMappings;
         }
-        return {};
     }
-    
+
+    // Inicijalizacija modula
     async initialize() {
         if (this.isInitialized) return;
         try {
+            await this.loadTeamMappings();
             await this.loadLineupData();
             this.addStyles();
             this.isInitialized = true;
-            console.log('✅ Lineup Manager initialized');
+            console.log(`✅ ${this.constructor.name} initialized with global mappings`);
         } catch (error) {
-            console.error('❌ Lineup Manager initialization failed:', error);
+            console.error(`❌ ${this.constructor.name} initialization failed:`, error);
         }
     }
 
+    // Load lineup data from API
     async loadLineupData(forceRefresh = false) {
-        console.groupCollapsed("LineupManager Debugger: loadLineupData");
-        
         if (!forceRefresh && this.lineupData && this.lastUpdate && (Date.now() - this.lastUpdate < this.cacheTimeout)) {
-            console.log("CACHE: Vraćanje podataka iz keša.");
-            console.groupEnd();
             return this.lineupData;
         }
 
         try {
-            console.log("API: Šaljem zahtev na /api/lineups...");
             const response = await fetch('/api/lineups');
-            console.log(`API: Dobijen odgovor, status: ${response.status}`);
             if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-            
             this.lineupData = await response.json();
             this.lastUpdate = Date.now();
-
-            console.info(`DATA: Uspešno preuzeto. Ukupno pronađeno postava sa servera: ${this.lineupData.length}`);
-            if (this.lineupData.length > 0) {
-                 console.log("RAW DATA:", this.lineupData);
-            } else {
-                 console.warn("UPOZORENJE: Server je vratio praznu listu. Skrejper verovatno nije uspeo. Proverite logove u terminalu.");
-            }
-            
-            console.groupEnd();
+            console.log('✅ Lineup data loaded');
             return this.lineupData;
-
         } catch (error) {
-            console.error('GREŠKA: Nije uspelo preuzimanje podataka o postavama.', error.message);
-            this.lineupData = [];
-            console.groupEnd();
+            console.error('⚠️ Could not load lineup data:', error.message);
+            this.lineupData = []; // Reset on error
             return this.lineupData;
         }
     }
 
+    // Find canonical team name
     findCanonicalTeamName(searchName) {
         if (!searchName) return null;
         const normalized = searchName.trim().toLowerCase();
+        
         for (const [canonical, aliases] of Object.entries(this.teamMappings)) {
             if (canonical.toLowerCase() === normalized) return canonical;
             if (aliases.some(alias => alias.toLowerCase() === normalized)) return canonical;
         }
+        
         for (const [canonical, aliases] of Object.entries(this.teamMappings)) {
             const allNames = [canonical, ...aliases].map(name => name.toLowerCase());
             for (const name of allNames) {
                 if (name.includes(normalized) || normalized.includes(name)) return canonical;
             }
         }
-        return searchName;
+        
+        return searchName; // Fallback na originalno ime
     }
 
+    // Get lineup for a specific team
     getTeamLineup(teamName) {
-        console.groupCollapsed(`LineupManager Debugger: getTeamLineup for "${teamName}"`);
-        if (!this.lineupData || !teamName) {
-            console.warn("Nema podataka o postavama ili nije prosleđeno ime tima.");
-            console.groupEnd();
-            return null;
-        }
-
+        if (!this.lineupData || !teamName) return null;
+        
         const canonicalName = this.findCanonicalTeamName(teamName);
-        console.log(`MAPIRANJE: Tražim kanonsko ime za "${teamName}" -> pronađeno: "${canonicalName}"`);
-
-        const foundLineup = this.lineupData.find(lineup => {
+        
+        return this.lineupData.find(lineup => {
             const lineupCanonical = this.findCanonicalTeamName(lineup.team);
-            const isMatch = lineupCanonical.toLowerCase() === canonicalName.toLowerCase();
-            if(isMatch) console.log(`   -> POKLAPANJE: "${lineup.team}" (kanonski: "${lineupCanonical}")`);
-            return isMatch;
+            return lineupCanonical.toLowerCase() === canonicalName.toLowerCase();
         });
-        
-        if(foundLineup){
-            console.info("USPEH: Pronađena postava.", foundLineup);
-        } else {
-            console.warn("GREŠKA: Nije pronađena postava za tim.", `(Traženo: "${canonicalName}")`);
-        }
-        
-        console.groupEnd();
-        return foundLineup;
     }
 
+    // Create detailed display for lineup
     createDetailedDisplay(teamName) {
         const lineup = this.getTeamLineup(teamName);
 
@@ -139,6 +119,7 @@ class LineupManager {
         `;
     }
 
+    // Display lineup in a container
     displayLineup(teamName, containerId) {
         const container = document.getElementById(containerId);
         if (!container) {
@@ -148,6 +129,7 @@ class LineupManager {
         container.innerHTML = this.createDetailedDisplay(teamName);
     }
     
+    // Add CSS styles for the lineup display
     addStyles() {
         if (document.getElementById('lineup-styles')) return;
         const styles = document.createElement('style');
