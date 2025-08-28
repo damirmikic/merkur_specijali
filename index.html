@@ -345,7 +345,14 @@
                         <section class="grid grid-cols-1 md:grid-cols-3 gap-4 items-end mb-8">
                              <div class="input-group">
                                 <label for="team-select">Tim</label>
-                                <select id="team-select" disabled></select>
+                                <div style="display: flex; gap: 10px; align-items: end;">
+                                    <select id="team-select" disabled style="flex: 1;"></select>
+                                    <button type="button" onclick="openTeamMapping()" 
+                                            class="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+                                            title="Podesi mapiranje timova za injury podatke">
+                                        🔧
+                                    </button>
+                                </div>
                             </div>
                             
                             <!-- Injury Display Container -->
@@ -1741,25 +1748,6 @@
                 // Show injury data for selected team
                 injuryContainer.style.display = 'block';
                 window.injuryManager.displayInjuries(teamName, 'team-injury-display');
-                
-                // Add injury indicator to team name in match-name field
-                setTimeout(() => {
-                    const matchNameField = $('#match-name');
-                    if (matchNameField && matchNameField.value) {
-                        // Remove existing indicators
-                        matchNameField.value = matchNameField.value.replace(/ [✅🚨⚠️🟡❓]\d*/g, '');
-                        
-                        // Add new indicator
-                        const indicator = window.injuryManager.createInjuryIndicator(teamName);
-                        if (indicator && !indicator.includes('✅')) {
-                            // Extract just the emoji and number from the HTML
-                            const tempDiv = document.createElement('div');
-                            tempDiv.innerHTML = indicator;
-                            const badgeText = tempDiv.textContent || '';
-                            matchNameField.value += ` ${badgeText}`;
-                        }
-                    }
-                }, 100);
             } else {
                 // Hide injury container when "all" is selected
                 injuryContainer.style.display = 'none';
@@ -2025,6 +2013,11 @@
             }
         });
 
+        // --- Team Mapping Function ---
+        function openTeamMapping() {
+            // Open team mapping in new tab/window
+            window.open('team-mapping.html', '_blank', 'width=1200,height=800,scrollbars=yes,resizable=yes');
+        }
 
         // --- Initial Setup ---
         window.onload = () => {
