@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Odds Generator</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="injury-module.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -345,6 +346,11 @@
                              <div class="input-group">
                                 <label for="team-select">Tim</label>
                                 <select id="team-select" disabled></select>
+                            </div>
+                            
+                            <!-- Injury Display Container -->
+                            <div id="team-injury-display" style="display: none; margin-top: 15px;">
+                                <!-- Injury data will be populated here -->
                             </div>
                             <div class="input-group"><label for="team-win-odd">Kvota na Pobedu</label><input type="number" id="team-win-odd" step="0.01" value="1.85"></div>
                             <div class="input-group"><label for="bookmaker-margin">Margina (%)</label><input type="number" id="bookmaker-margin" step="0.1" value="10"></div>
@@ -1725,6 +1731,38 @@
                 } else {
                     $('#match-name').value = selectedOption.textContent;
                 }
+            }
+
+            // Injury Display Integration
+            const teamName = selectedOption.textContent;
+            const injuryContainer = $('#team-injury-display');
+            
+            if (teamName && teamName !== 'all' && e.target.value !== 'all' && window.injuryManager) {
+                // Show injury data for selected team
+                injuryContainer.style.display = 'block';
+                window.injuryManager.displayInjuries(teamName, 'team-injury-display');
+                
+                // Add injury indicator to team name in match-name field
+                setTimeout(() => {
+                    const matchNameField = $('#match-name');
+                    if (matchNameField && matchNameField.value) {
+                        // Remove existing indicators
+                        matchNameField.value = matchNameField.value.replace(/ [✅🚨⚠️🟡❓]\d*/g, '');
+                        
+                        // Add new indicator
+                        const indicator = window.injuryManager.createInjuryIndicator(teamName);
+                        if (indicator && !indicator.includes('✅')) {
+                            // Extract just the emoji and number from the HTML
+                            const tempDiv = document.createElement('div');
+                            tempDiv.innerHTML = indicator;
+                            const badgeText = tempDiv.textContent || '';
+                            matchNameField.value += ` ${badgeText}`;
+                        }
+                    }
+                }, 100);
+            } else {
+                // Hide injury container when "all" is selected
+                injuryContainer.style.display = 'none';
             }
 
             const selectedTeamSide = e.target.value;

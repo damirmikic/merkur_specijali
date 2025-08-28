@@ -13,3 +13,9 @@
   from = "/api/basketball-events"
   to = "/.netlify/functions/fetch-basketball-events"
   status = 200
+
+# Ruta za injury podatke
+[[redirects]]
+  from = "/api/injuries"
+  to = "/.netlify/functions/fetch-injuries"
+  status = 200
