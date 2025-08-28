@@ -1,6 +1,6 @@
 /**
  * Netlify serverless function to securely fetch sports events data from the Cloudbet API.
- * This function now fetches data for a specific list of top leagues.
+ * This function now fetches data for a specific list of top leagues and filters out outrights.
  */
 exports.handler = async (event, context) => {
   // Get the secret API key from the Netlify environment variables
@@ -34,7 +34,7 @@ exports.handler = async (event, context) => {
   try {
     // Create a fetch promise for each league
     const fetchPromises = leagueKeys.map(key => {
-      const API_URL = `https://sports-api.cloudbet.com/pub/v2/odds/competitions/${key}?from=${from}&to=${to}&players=true&limit=50`;
+      const API_URL = `https://sports-api.cloudbet.com/pub/v2/odds/competitions/${key}?from=${from}&to=${to}&players=true&limit=100`;
       return fetch(API_URL, {
         headers: { 'X-API-Key': API_KEY }
       });
@@ -49,10 +49,14 @@ exports.handler = async (event, context) => {
         const response = result.value;
         if (response.ok) {
           const data = await response.json();
-          // The API returns a single competition object per call.
-          // We only add it if it actually has events for the given timeframe.
+          
+          // Filter out outright events before adding to the competitions array
           if (data && data.events && data.events.length > 0) {
-            competitions.push(data);
+            data.events = data.events.filter(event => event.type !== 'EVENT_TYPE_OUTRIGHT');
+            // Only push the competition if it still has events after filtering
+            if (data.events.length > 0) {
+              competitions.push(data);
+            }
           }
         } else {
           // Log an error for non-successful HTTP responses
