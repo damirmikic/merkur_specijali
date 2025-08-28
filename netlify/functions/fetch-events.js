@@ -40,21 +40,27 @@ exports.handler = async (event, context) => {
       });
     });
 
-    // Execute all fetches concurrently
-    const responses = await Promise.all(fetchPromises);
+    // Execute all fetches and wait for all to settle (either succeed or fail)
+    const results = await Promise.allSettled(fetchPromises);
 
     const competitions = [];
-    for (const response of responses) {
-      if (response.ok) {
-        const data = await response.json();
-        // The API returns a single competition object per call.
-        // We only add it if it actually has events for the given timeframe.
-        if (data && data.events && data.events.length > 0) {
-          competitions.push(data);
+    for (const result of results) {
+      if (result.status === 'fulfilled') {
+        const response = result.value;
+        if (response.ok) {
+          const data = await response.json();
+          // The API returns a single competition object per call.
+          // We only add it if it actually has events for the given timeframe.
+          if (data && data.events && data.events.length > 0) {
+            competitions.push(data);
+          }
+        } else {
+          // Log an error for non-successful HTTP responses
+          console.error(`API Error for one of the leagues: ${response.status} ${response.statusText}`);
         }
       } else {
-        // Log an error but don't fail the entire function, to allow for partial data
-        console.error(`API Error for one of the leagues: ${response.status} ${response.statusText}`);
+        // Log an error for failed fetches (e.g., network errors, timeouts)
+        console.error(`Fetch failed for one of the leagues: ${result.reason}`);
       }
     }
 
