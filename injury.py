@@ -126,7 +126,10 @@ if __name__ == '__main__':
         "spain-la-liga": "https://www.sportsgambler.com/injuries/football/spain-la-liga/",
         "italy-serie-a": "https://www.sportsgambler.com/injuries/football/italy-serie-a/",
         "germany-bundesliga": "https://www.sportsgambler.com/injuries/football/germany-bundesliga/",
-        "france-ligue-1": "https://www.sportsgambler.com/injuries/football/france-ligue-1/"
+        "france-ligue-1": "https://www.sportsgambler.com/injuries/football/france-ligue-1/",
+        "uefa-europa-league": "https://www.sportsgambler.com/injuries/football/uefa-europa-league/",
+        "uefa-champions-league": "https://www.sportsgambler.com/injuries/football/uefa-champions-league/"
+        
     }
 
     # Scrape the data
