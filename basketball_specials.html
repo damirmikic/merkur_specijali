@@ -223,7 +223,7 @@
                 '1. min 4+ poena',
                 '1. min 5+ poena',
                 '1. min - tačno 0 poena', '1. min - tačno 2 poena', '1. min - tačno 3 poena', '1. min - tačno 4 poena',
-                '2. min 8+ poena', '2. min 10+ poena'
+                '2m 8+ poena', '2m 10+ poena'
             ];
 
             function populateBettingMarkets() {
@@ -569,8 +569,8 @@
                     case '1. min - tačno 2 poena': probability = poissonPMF(mu_1min, 2); break;
                     case '1. min - tačno 3 poena': probability = poissonPMF(mu_1min, 3); break;
                     case '1. min - tačno 4 poena': probability = poissonPMF(mu_1min, 4); break;
-                    case '2. min 8+ poena': probability = probOver(mu_2min_total, 7); break;
-                    case '2. min 10+ poena': probability = probOver(mu_2min_total, 9); break;
+                    case '2m 8+ poena': probability = probOver(mu_2min_total, 7); break;
+                    case '2m 10+ poena': probability = probOver(mu_2min_total, 9); break;
                 }
 
                 if (probability > 0) {
