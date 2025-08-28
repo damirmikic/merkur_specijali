@@ -19,3 +19,9 @@
   from = "/api/injuries"
   to = "/.netlify/functions/fetch-injuries"
   status = 200
+
+# Nova ruta za postave
+[[redirects]]
+  from = "/api/lineups"
+  to = "/.netlify/functions/fetch-lineups"
+  status = 200
