@@ -1,6 +1,6 @@
 /**
  * Lineup Display Module for Merkur Specijali
- * Integrates with /api/lineups endpoint and /api/mappings for team data
+ * Integrates with /api/lineups endpoint and a local JSON for team data
  */
 
 class LineupManager {
@@ -12,16 +12,16 @@ class LineupManager {
         this.cacheTimeout = 15 * 60 * 1000; // 15 minutes cache
     }
 
-    // Učitava mapiranja sa centralne baze
+    // Učitava mapiranja iz lokalnog JSON fajla
     async loadTeamMappings() {
         try {
-            const response = await fetch('/api/mappings');
-            if (!response.ok) throw new Error('Failed to fetch mappings');
+            const response = await fetch('/team-mappings.json'); // PROMENA OVDJE
+            if (!response.ok) throw new Error('Failed to fetch local mappings');
             const data = await response.json();
             this.teamMappings = data;
             return data;
         } catch (error) {
-            console.warn('Could not fetch global mappings for lineups, using empty fallback:', error);
+            console.warn('Could not fetch local mappings for lineups, using empty fallback:', error);
             this.teamMappings = {};
             return this.teamMappings;
         }
@@ -35,13 +35,13 @@ class LineupManager {
             await this.loadLineupData();
             this.addStyles();
             this.isInitialized = true;
-            console.log(`✅ ${this.constructor.name} initialized with global mappings`);
+            console.log(`✅ ${this.constructor.name} initialized with local mappings`);
         } catch (error) {
             console.error(`❌ ${this.constructor.name} initialization failed:`, error);
         }
     }
-
-    // Load lineup data from API
+    
+    // Ostatak fajla ostaje nepromenjen...
     async loadLineupData(forceRefresh = false) {
         if (!forceRefresh && this.lineupData && this.lastUpdate && (Date.now() - this.lastUpdate < this.cacheTimeout)) {
             return this.lineupData;
@@ -61,7 +61,6 @@ class LineupManager {
         }
     }
 
-    // Find canonical team name
     findCanonicalTeamName(searchName) {
         if (!searchName) return null;
         const normalized = searchName.trim().toLowerCase();
@@ -78,10 +77,9 @@ class LineupManager {
             }
         }
         
-        return searchName; // Fallback na originalno ime
+        return searchName;
     }
 
-    // Get lineup for a specific team
     getTeamLineup(teamName) {
         if (!this.lineupData || !teamName) return null;
         
@@ -93,7 +91,6 @@ class LineupManager {
         });
     }
 
-    // Create detailed display for lineup
     createDetailedDisplay(teamName) {
         const lineup = this.getTeamLineup(teamName);
 
@@ -119,7 +116,6 @@ class LineupManager {
         `;
     }
 
-    // Display lineup in a container
     displayLineup(teamName, containerId) {
         const container = document.getElementById(containerId);
         if (!container) {
@@ -129,7 +125,6 @@ class LineupManager {
         container.innerHTML = this.createDetailedDisplay(teamName);
     }
     
-    // Add CSS styles for the lineup display
     addStyles() {
         if (document.getElementById('lineup-styles')) return;
         const styles = document.createElement('style');
