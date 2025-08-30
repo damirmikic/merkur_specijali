@@ -11,7 +11,7 @@ exports.handler = async (event, context) => {
         headers: {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
         },
-        timeout: 8000 // 8 second timeout for each individual fetch
+        timeout: 8000 // 8-second timeout for each individual fetch
     };
 
     const baseUrl = "https://www.sportsmole.co.uk";
@@ -72,30 +72,22 @@ exports.handler = async (event, context) => {
                     if (strongText.includes('possible starting lineup:')) {
                         const teamName = strongText.replace('possible starting lineup:', '').trim();
                         
-                        let currentElement = $$(strongEl);
-                        let lineupText = null;
+                        // New robust logic: Find all subsequent <p> tags and get the first one with content.
+                        const lineupNode = $$(strongEl).nextAll('p').filter((idx, p) => {
+                            return $$(p).text().trim().length > 0;
+                        }).first();
 
-                        while (currentElement.length) {
-                            currentElement = currentElement.next();
-                            if (!currentElement.length) break;
-
-                            if (currentElement.is('p')) {
-                                const text = currentElement.text().trim();
-                                if (text && text.includes(';')) {
-                                    lineupText = text;
-                                    break; 
-                                }
+                        if (lineupNode.length > 0) {
+                            const lineupText = lineupNode.text().trim();
+                            // Final check that it looks like a lineup
+                            if (lineupText.includes(';') || lineupText.includes(',')) {
+                                console.log(`   -> Found Lineup for "${teamName}"`);
+                                allLineupsData.push({
+                                    team: teamName,
+                                    lineup: lineupText,
+                                    source_url: articleResponse.url
+                                });
                             }
-                            if (currentElement.is('strong')) break;
-                        }
-
-                        if (lineupText) {
-                            console.log(`   -> Found Lineup for "${teamName}"`);
-                            allLineupsData.push({
-                                team: teamName,
-                                lineup: lineupText,
-                                source_url: articleResponse.url
-                            });
                         }
                     }
                 });
