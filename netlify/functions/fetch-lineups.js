@@ -7,11 +7,11 @@ exports.handler = async (event, context) => {
         'Content-Type': 'application/json',
     };
 
-    // Dodajemo User-Agent da bismo se predstavili kao standardni browser
     const fetchOptions = {
         headers: {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-        }
+        },
+        timeout: 8000 // 8 second timeout for each individual fetch
     };
 
     const baseUrl = "https://www.sportsmole.co.uk";
@@ -41,30 +41,40 @@ exports.handler = async (event, context) => {
 
         console.log(`2. Found ${previewLinks.length} unique preview links.`);
         if (previewLinks.length === 0) {
-            console.warn("   ! WARNING: No preview links found. The scraper might need updating.");
+            console.warn("   ! WARNING: No preview links found.");
+            return { statusCode: 200, headers, body: JSON.stringify([]) };
         }
 
-        let articleCounter = 0;
-        for (const link of previewLinks) {
-            articleCounter++;
-            console.log(`\n3. Processing article ${articleCounter}/${previewLinks.length}: ${link}`);
-            try {
-                const articleResponse = await fetch(link, fetchOptions);
-                if (!articleResponse.ok) continue;
+        console.log(`3. Fetching all ${previewLinks.length} articles in parallel...`);
+        const fetchPromises = previewLinks.map(link => fetch(link, fetchOptions));
+        const results = await Promise.allSettled(fetchPromises);
 
+        let articleCounter = 0;
+        for (const result of results) {
+            articleCounter++;
+            if (result.status === 'rejected') {
+                console.warn(`   - Article ${articleCounter} failed to fetch: ${result.reason}`);
+                continue;
+            }
+
+            const articleResponse = result.value;
+            if (!articleResponse.ok) {
+                console.warn(`   - Article ${articleCounter} at ${articleResponse.url} returned status ${articleResponse.status}`);
+                continue;
+            }
+
+            try {
                 const articleHtml = await articleResponse.text();
                 const $$ = cheerio.load(articleHtml);
 
                 $$('#article_body strong').each((i, strongEl) => {
                     const strongText = $$(strongEl).text().trim();
                     if (strongText.includes('possible starting lineup:')) {
-                        console.log(`   ✔️ Found lineup title: "${strongText}"`);
                         const teamName = strongText.replace('possible starting lineup:', '').trim();
                         
                         let currentElement = $$(strongEl);
                         let lineupText = null;
 
-                        // Loop through subsequent elements to find the first non-empty paragraph with a semicolon
                         while (currentElement.length) {
                             currentElement = currentElement.next();
                             if (!currentElement.length) break;
@@ -76,26 +86,21 @@ exports.handler = async (event, context) => {
                                     break; 
                                 }
                             }
-                            // Stop if we hit another strong tag, indicating a new section
-                            if (currentElement.is('strong')) {
-                                break;
-                            }
+                            if (currentElement.is('strong')) break;
                         }
 
                         if (lineupText) {
-                            console.log(`   ✅ Successfully extracted lineup for "${teamName}": "${lineupText}"`);
+                            console.log(`   -> Found Lineup for "${teamName}"`);
                             allLineupsData.push({
                                 team: teamName,
                                 lineup: lineupText,
-                                source_url: link
+                                source_url: articleResponse.url
                             });
-                        } else {
-                            console.log(`   ❌ Found title for "${teamName}" but couldn't find the lineup paragraph.`);
                         }
                     }
                 });
             } catch (e) {
-                console.warn(`   ⚠️ Could not process article: ${link}`, e.message);
+                console.warn(`   - Could not process article HTML for ${articleResponse.url}`, e.message);
             }
         }
 
