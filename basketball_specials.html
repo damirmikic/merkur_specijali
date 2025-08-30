@@ -746,13 +746,7 @@
             
             function resetBetForm() {
                 betMarketSelect.selectedIndex = 0;
-                playerSelectionGroup.classList.add('hidden');
-                betHandicapInput.value = '';
-                betOdd1Input.value = '';
-                betOddUnderInput.value = '';
-                betOddOverInput.value = '';
-                calculationDisplay.classList.add('hidden');
-                betOdd1Input.readOnly = false;
+                handleMarketSelectionChange();
             }
 
             function handleMarketSelectionChange() {
@@ -786,7 +780,7 @@
                     calculateAndSetHandicap(marketType);
                 }
             }
-
+            
             bballMatchSelect.addEventListener('change', () => {
                 resetSlidersToDefaults();
                 handleMarketSelectionChange();
