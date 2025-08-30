@@ -14,9 +14,8 @@ exports.handler = async (event, context) => {
         }
     };
 
-    const baseUrl = "http://www.sportsmole.co.uk";
-    // Koristimo timestamp da izbegnemo keširanje stranice
-    const initialUrl = `${baseUrl}/index_rhs.html?${new Date().getTime()}`;
+    const baseUrl = "https://www.sportsmole.co.uk";
+    const initialUrl = `${baseUrl}/football/previews/`;
     const allLineupsData = [];
 
     try {
@@ -30,17 +29,17 @@ exports.handler = async (event, context) => {
         const $ = cheerio.load(html);
         
         const previewLinks = [];
-        $('a').each((i, el) => {
-            const dataTitle = $(el).attr('data-title');
-            if (dataTitle && dataTitle.startsWith('Preview:')) {
-                const href = $(el).attr('href');
-                if (href) {
-                    previewLinks.push(baseUrl + href);
+        $('div.previews a').each((i, el) => {
+            const href = $(el).attr('href');
+            if (href && href.includes('/preview/') && href.endsWith('.html')) {
+                const fullUrl = new URL(href, baseUrl).href;
+                if (!previewLinks.includes(fullUrl)) {
+                    previewLinks.push(fullUrl);
                 }
             }
         });
 
-        console.log(`2. Found ${previewLinks.length} preview links.`);
+        console.log(`2. Found ${previewLinks.length} unique preview links.`);
         if (previewLinks.length === 0) {
             console.warn("   ! WARNING: No preview links found. The scraper might need updating.");
         }
@@ -56,27 +55,42 @@ exports.handler = async (event, context) => {
                 const articleHtml = await articleResponse.text();
                 const $$ = cheerio.load(articleHtml);
 
-                $$('strong').each((i, strongEl) => {
+                $$('#article_body strong').each((i, strongEl) => {
                     const strongText = $$(strongEl).text().trim();
                     if (strongText.includes('possible starting lineup:')) {
                         console.log(`   ✔️ Found lineup title: "${strongText}"`);
                         const teamName = strongText.replace('possible starting lineup:', '').trim();
                         
-                        let lineupNode = $$(strongEl).nextAll('p').first();
-                        while(lineupNode.length && lineupNode.text().trim() === '') {
-                            lineupNode = lineupNode.next('p');
+                        let currentElement = $$(strongEl);
+                        let lineupText = null;
+
+                        // Loop through subsequent elements to find the first non-empty paragraph with a semicolon
+                        while (currentElement.length) {
+                            currentElement = currentElement.next();
+                            if (!currentElement.length) break;
+
+                            if (currentElement.is('p')) {
+                                const text = currentElement.text().trim();
+                                if (text && text.includes(';')) {
+                                    lineupText = text;
+                                    break; 
+                                }
+                            }
+                            // Stop if we hit another strong tag, indicating a new section
+                            if (currentElement.is('strong')) {
+                                break;
+                            }
                         }
 
-                        if (lineupNode.length) {
-                            const lineupText = lineupNode.text().trim();
-                            console.log(`   ✅ Successfully extracted lineup: "${lineupText}"`);
+                        if (lineupText) {
+                            console.log(`   ✅ Successfully extracted lineup for "${teamName}": "${lineupText}"`);
                             allLineupsData.push({
                                 team: teamName,
                                 lineup: lineupText,
                                 source_url: link
                             });
                         } else {
-                            console.log(`   ❌ Found title for "${teamName}" but couldn't find the next <p> with the lineup.`);
+                            console.log(`   ❌ Found title for "${teamName}" but couldn't find the lineup paragraph.`);
                         }
                     }
                 });
