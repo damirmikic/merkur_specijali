@@ -1,8 +1,8 @@
-import { createClient } from '@supabase/supabase-js'
+const { createClient } = require('@supabase/supabase-js');
 
 // Ova funkcija čuva nova mapiranja u vašu Supabase bazu.
 // Prvo obriše sve stare unose, a zatim upiše nove.
-export const handler = async (event, context) => {
+exports.handler = async (event, context) => {
     // Dozvoljavamo samo POST zahteve za upisivanje
     if (event.httpMethod !== 'POST') {
         return { statusCode: 405, body: 'Method Not Allowed' };
