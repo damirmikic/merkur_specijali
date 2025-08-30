@@ -1,7 +1,7 @@
-import { createClient } from '@supabase/supabase-js'
+const { createClient } = require('@supabase/supabase-js');
 
 // Ova funkcija preuzima sva postojeća mapiranja iz vaše Supabase baze.
-export const handler = async (event, context) => {
+exports.handler = async (event, context) => {
     const supabaseUrl = process.env.SUPABASE_URL;
     // Koristimo ispravno ime varijable koje Netlify integracija kreira.
     const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY; 
