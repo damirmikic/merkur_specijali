@@ -9,6 +9,7 @@
     "deploy": "netlify deploy --prod"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.0.0",
     "node-fetch": "^2.6.7",
     "cheerio": "^1.0.0-rc.12"
   },
