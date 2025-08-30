@@ -519,73 +519,17 @@
 
 
     <script>
-        // All previous JavaScript code remains the same...
-        // The following is added/modified for manual entry functionality
-        
-        const manualEntryBtn = document.getElementById('manual-entry-btn');
-        const manualEntryBtnText = document.getElementById('manual-entry-btn-text');
-        const apiInputs = document.getElementById('api-inputs');
-        const manualInputs = document.getElementById('manual-inputs');
-        const manualHomeTeam = document.getElementById('manual-home-team');
-        const manualAwayTeam = document.getElementById('manual-away-team');
-        
-        let isManualMode = false;
-
-        manualEntryBtn.addEventListener('click', () => {
-            isManualMode = !isManualMode;
-            if (isManualMode) {
-                apiInputs.classList.add('hidden');
-                manualInputs.classList.remove('hidden');
-                matchDetailsSection.classList.remove('hidden');
-                manualEntryBtnText.textContent = 'Izaberi Meč sa API-ja';
-                manualEntryBtn.classList.remove('primary');
-                manualEntryBtn.classList.add('secondary');
-                teamSelect.disabled = false;
-                
-                // If kickoff date is not set, set it to today.
-                const kickoffDateInput = document.getElementById('kickoff-date');
-                if (!kickoffDateInput.value) {
-                    const now = new Date();
-                    kickoffDateInput.value = now.toISOString().split('T')[0];
-                    document.getElementById('kickoff-time').value = get24hTime(now);
-                }
-                
-                updateTeamSelectFromManual();
-            } else {
-                apiInputs.classList.remove('hidden');
-                manualInputs.classList.add('hidden');
-                manualEntryBtnText.textContent = 'Dodaj Meč Ručno';
-                manualEntryBtn.classList.add('primary');
-                manualEntryBtn.classList.remove('secondary');
-                if (!eventSelect.value) {
-                    matchDetailsSection.classList.add('hidden');
-                    teamSelect.disabled = true;
-                }
-            }
-        });
-
-        function updateTeamSelectFromManual() {
-            const home = manualHomeTeam.value || 'Domaćin';
-            const away = manualAwayTeam.value || 'Gost';
-            
-            teamSelect.innerHTML = `
-                <option value="all">Svi Igrači</option>
-                <option value="home">${home}</option>
-                <option value="away">${away}</option>
-            `;
-            
-            document.getElementById('match-name').value = `${home} vs ${away}`;
-        }
-
-        manualHomeTeam.addEventListener('input', updateTeamSelectFromManual);
-        manualAwayTeam.addEventListener('input', updateTeamSelectFromManual);
-
-        // --- Original script continues below ---
         const $ = (selector) => document.querySelector(selector);
         const $$ = (selector) => document.querySelectorAll(selector);
         const on = (element, event, handler) => element.addEventListener(event, handler);
         
         // DOM Element Constants
+        const manualEntryBtn = $('#manual-entry-btn');
+        const manualEntryBtnText = $('#manual-entry-btn-text');
+        const apiInputs = $('#api-inputs');
+        const manualInputs = $('#manual-inputs');
+        const manualHomeTeam = $('#manual-home-team');
+        const manualAwayTeam = $('#manual-away-team');
         const generateBtn = $('#generate-btn');
         const downloadCsvBtn = $('#download-csv-btn');
         const addPlayerBtn = $('#add-player-btn');
@@ -613,11 +557,62 @@
 
         
         // Global State
+        let isManualMode = false;
         let playerCounter = 0;
         let allFbrefStats = [];
         let apiEvents = [];
         let availableApiPlayers = [];
         let currentTab = 'players';
+        
+        // --- Manual Mode & Team Name Logic ---
+        on(manualEntryBtn, () => {
+            isManualMode = !isManualMode;
+            if (isManualMode) {
+                apiInputs.classList.add('hidden');
+                manualInputs.classList.remove('hidden');
+                matchDetailsSection.classList.remove('hidden');
+                manualEntryBtnText.textContent = 'Izaberi Meč sa API-ja';
+                manualEntryBtn.classList.remove('primary');
+                manualEntryBtn.classList.add('secondary');
+                teamSelect.disabled = false;
+                
+                const kickoffDateInput = $('#kickoff-date');
+                if (!kickoffDateInput.value) {
+                    const now = new Date();
+                    kickoffDateInput.value = now.toISOString().split('T')[0];
+                    $('#kickoff-time').value = get24hTime(now);
+                }
+                
+                updateTeamSelectFromManual();
+            } else {
+                apiInputs.classList.remove('hidden');
+                manualInputs.classList.add('hidden');
+                manualEntryBtnText.textContent = 'Dodaj Meč Ručno';
+                manualEntryBtn.classList.add('primary');
+                manualEntryBtn.classList.remove('secondary');
+                if (!eventSelect.value) {
+                    matchDetailsSection.classList.add('hidden');
+                    teamSelect.disabled = true;
+                }
+            }
+        });
+
+        function updateTeamSelectFromManual() {
+            const home = manualHomeTeam.value || 'Domaćin';
+            const away = manualAwayTeam.value || 'Gost';
+            
+            teamSelect.innerHTML = `
+                <option value="all">Svi Igrači</option>
+                <option value="home">${home}</option>
+                <option value="away">${away}</option>
+            `;
+            
+            $('#match-name').value = `${home} vs ${away}`;
+        }
+
+        on(manualHomeTeam, 'input', updateTeamSelectFromManual);
+        on(manualAwayTeam, 'input', updateTeamSelectFromManual);
+
 
         // --- Math & Stat Helpers ---
         let factCache = [1];
@@ -865,6 +860,15 @@
                 div.onclick = () => {
                      inputElement.value = player.Player;
                      suggestionsContainer.classList.add('hidden');
+                     
+                     // Injury Check on Autocomplete Select
+                     if (window.injuryManager) {
+                        const injuryInfo = window.injuryManager.isPlayerInjured(player.Player);
+                        if (injuryInfo) {
+                            alert(`${player.Player} je možda povređen.\n\nInfo: ${injuryInfo.info}\nOčekivani povratak: ${injuryInfo.expected_return}`);
+                        }
+                     }
+                     
                      selectPlayerFromDb(inputElement, player);
                 }
                 suggestionsContainer.appendChild(div);
@@ -1781,6 +1785,18 @@
             const selectedOption = apiPlayerSelect.options[apiPlayerSelect.selectedIndex];
             if (!selectedOption || !selectedOption.value) return;
             const playerName = selectedOption.value;
+
+            // Injury Check on API Player Add
+            if (window.injuryManager) {
+                const injuryInfo = window.injuryManager.isPlayerInjured(playerName);
+                if (injuryInfo) {
+                    const message = `${playerName} je možda povređen.\n\nInfo: ${injuryInfo.info}\nOčekivani povratak: ${injuryInfo.expected_return}\n\nDa li želite da ga dodate uprkos tome?`;
+                    if (!confirm(message)) {
+                        return; // Stop if the user clicks "Cancel"
+                    }
+                }
+            }
+
             const goalscorerOdd = selectedOption.dataset.odd;
             const teamSide = selectedOption.dataset.teamSide;
             const existingPlayers = Array.from(document.querySelectorAll('.player-name-search')).map(input => input.value);
