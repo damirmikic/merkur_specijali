@@ -972,10 +972,14 @@
                     let odd_2plus_final = applyMarginToOdd(odd_2plus_raw, 20);
                     createBet(playerName, 'daje', '2+ golova', odd_2plus_final, false);
 
-                    const prob_3plus = 1 - p_poisson[0] - p_poisson[1] - p_poisson[2];
-                    let odd_3plus_raw = probToOdd(prob_3plus);
-                    let odd_3plus_final = applyMarginToOdd(odd_3plus_raw, 30);
-                    createBet(playerName, 'daje', '3+ golova', odd_3plus_final, false);
+                    const formatted_odd_2plus = formatOdd(odd_2plus_final);
+
+                    if (formatted_odd_2plus !== '60.00') {
+                        const prob_3plus = 1 - p_poisson[0] - p_poisson[1] - p_poisson[2];
+                        let odd_3plus_raw = probToOdd(prob_3plus);
+                        let odd_3plus_final = applyMarginToOdd(odd_3plus_raw, 30);
+                        createBet(playerName, 'daje', '3+ golova', odd_3plus_final, false);
+                    }
 
                     const lambda_1h = playerLambda * 0.44;
                     const lambda_2h = playerLambda * 0.56;
