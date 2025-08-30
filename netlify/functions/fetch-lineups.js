@@ -49,19 +49,14 @@ exports.handler = async (event, context) => {
         const fetchPromises = previewLinks.map(link => fetch(link, fetchOptions));
         const results = await Promise.allSettled(fetchPromises);
 
-        let articleCounter = 0;
         for (const result of results) {
-            articleCounter++;
             if (result.status === 'rejected') {
-                console.warn(`   - Article ${articleCounter} failed to fetch: ${result.reason}`);
+                console.warn(`   - Article failed to fetch: ${result.reason}`);
                 continue;
             }
 
             const articleResponse = result.value;
-            if (!articleResponse.ok) {
-                console.warn(`   - Article ${articleCounter} at ${articleResponse.url} returned status ${articleResponse.status}`);
-                continue;
-            }
+            if (!articleResponse.ok) continue;
 
             try {
                 const articleHtml = await articleResponse.text();
@@ -72,16 +67,25 @@ exports.handler = async (event, context) => {
                     if (strongText.includes('possible starting lineup:')) {
                         const teamName = strongText.replace('possible starting lineup:', '').trim();
                         
-                        // New robust logic: Find all subsequent <p> tags and get the first one with content.
-                        const lineupNode = $$(strongEl).nextAll('p').filter((idx, p) => {
-                            return $$(p).text().trim().length > 0;
-                        }).first();
+                        let parentElement = $$(strongEl).parent();
+                        let lineupText = null;
 
-                        if (lineupNode.length > 0) {
-                            const lineupText = lineupNode.text().trim();
-                            // Final check that it looks like a lineup
-                            if (lineupText.includes(';') || lineupText.includes(',')) {
-                                console.log(`   -> Found Lineup for "${teamName}"`);
+                        while (parentElement.length && !lineupText) {
+                            let nextP = parentElement.nextAll('p').first();
+                            while(nextP.length) {
+                                let text = nextP.text().trim();
+                                if (text && (text.includes(';') || text.split(',').length > 5)) {
+                                    lineupText = text;
+                                    break;
+                                }
+                                nextP = nextP.next('p');
+                            }
+                            parentElement = parentElement.parent();
+                        }
+
+                        if (lineupText) {
+                             if (!allLineupsData.some(item => item.team === teamName && item.source_url === articleResponse.url)) {
+                                console.log(`   -> Found Lineup for "${teamName}" in ${articleResponse.url}`);
                                 allLineupsData.push({
                                     team: teamName,
                                     lineup: lineupText,
@@ -92,11 +96,11 @@ exports.handler = async (event, context) => {
                     }
                 });
             } catch (e) {
-                console.warn(`   - Could not process article HTML for ${articleResponse.url}`, e.message);
+                // Ignore errors from individual articles
             }
         }
 
-        console.log(`\n4. Finished processing. Total lineups found: ${allLineupsData.length}`);
+        console.log(`\n4. Finished processing. Total unique lineups found: ${allLineupsData.length}`);
         console.log("--- Lineup Scraper END ---");
 
         return {
