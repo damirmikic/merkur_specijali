@@ -126,9 +126,15 @@
                         </div>
                     </div>
                 </section>
-
+                
                 <section class="mb-8 p-6 bg-slate-50 border border-slate-200 rounded-lg">
-                    <h3 class="font-bold text-lg text-slate-800 mb-4">Podešavanje Udela Poena</h3>
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="font-bold text-lg text-slate-800">Podešavanje Udela Poena</h3>
+                        <button id="reset-sliders-btn" class="action-btn secondary !py-1 !px-3 text-xs">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-rotate-ccw"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+                            Resetuj Vrednosti
+                        </button>
+                    </div>
                     <div id="shot-distribution-sliders" class="grid grid-cols-1 md:grid-cols-3 gap-6">
                         <div class="input-group">
                             <label for="ft-slider" class="flex justify-between">Slobodna Bacanja <span id="ft-value" class="font-bold">17%</span></label>
@@ -243,6 +249,7 @@
             const p2Value = document.getElementById('p2-value');
             const p3Value = document.getElementById('p3-value');
             const allSliders = [ftSlider, p2Slider, p3Slider];
+            const resetSlidersBtn = document.getElementById('reset-sliders-btn');
 
 
             let competitionData = null;
@@ -660,7 +667,7 @@
                 betOddOverInput.value = applyMargin(raw_odd_over).toFixed(2);
                 betOddUnderInput.value = applyMargin(raw_odd_under).toFixed(2);
             }
-
+            
             function handleSliderUpdate(changedSlider) {
                 const values = {
                     ft: parseInt(ftSlider.value, 10),
@@ -721,6 +728,18 @@
                 }
             }
 
+             function resetSlidersToDefaults() {
+                ftSlider.value = 17;
+                p2Slider.value = 49;
+                p3Slider.value = 34;
+
+                ftValue.textContent = '17%';
+                p2Value.textContent = '49%';
+                p3Value.textContent = '34%';
+                
+                handleMarketSelectionChange();
+            }
+
             allSliders.forEach(slider => {
                 slider.addEventListener('input', () => handleSliderUpdate(slider));
             });
@@ -768,11 +787,15 @@
                 }
             }
 
-            bballMatchSelect.addEventListener('change', handleMarketSelectionChange);
+            bballMatchSelect.addEventListener('change', () => {
+                resetSlidersToDefaults();
+                handleMarketSelectionChange();
+            });
             betMarketSelect.addEventListener('change', handleMarketSelectionChange);
             addBetBtn.addEventListener('click', addBetToGenerator);
             resetBetBtn.addEventListener('click', resetBetForm);
             bballDownloadCsvBtn.addEventListener('click', downloadBballCsv);
+            resetSlidersBtn.addEventListener('click', resetSlidersToDefaults);
 
             populateBettingMarkets();
             fetchBasketballApiEvents();
