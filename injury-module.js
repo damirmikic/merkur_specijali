@@ -15,7 +15,7 @@ class InjuryManager {
     // Učitava mapiranja iz lokalnog JSON fajla
     async loadTeamMappings() {
         try {
-            const response = await fetch('/team-mappings.json'); // PROMENA OVDJE
+            const response = await fetch('/team-mappings.json');
             if (!response.ok) throw new Error('Failed to fetch local mappings');
             const data = await response.json();
             this.teamMappings = data;
@@ -41,7 +41,6 @@ class InjuryManager {
         }
     }
     
-    // Ostatak fajla ostaje nepromenjen...
     async loadInjuryData(forceRefresh = false) {
         if (!forceRefresh && this.injuryData && this.lastUpdate && (Date.now() - this.lastUpdate < this.cacheTimeout)) {
             return this.injuryData;
@@ -111,6 +110,30 @@ class InjuryManager {
         return injuries;
     }
     
+    /**
+     * NOVA FUNKCIJA: Proverava da li je određeni igrač povređen.
+     * @param {string} playerName - Ime igrača za proveru.
+     * @returns {object|null} - Vraća objekat sa informacijama o povredi ako je igrač pronađen, inače null.
+     */
+    isPlayerInjured(playerName) {
+        if (!this.injuryData || !playerName) return null;
+
+        const normalizedPlayerName = playerName.trim().toLowerCase();
+
+        for (const [league, injuries] of Object.entries(this.injuryData)) {
+            if (league.startsWith('_') || !Array.isArray(injuries)) continue;
+
+            const foundInjury = injuries.find(injury =>
+                injury.player_name && injury.player_name.toLowerCase() === normalizedPlayerName
+            );
+
+            if (foundInjury) {
+                return foundInjury; // Vraća ceo objekat sa podacima o povredi
+            }
+        }
+        return null; // Vraća null ako igrač nije na listi povređenih
+    }
+
     getInjurySeverity(injuryInfo) {
         if (!injuryInfo) return 'unknown';
         const info = injuryInfo.toLowerCase();
