@@ -128,6 +128,24 @@
                 </section>
 
                 <section class="mb-8 p-6 bg-slate-50 border border-slate-200 rounded-lg">
+                    <h3 class="font-bold text-lg text-slate-800 mb-4">Podešavanje Udela Poena</h3>
+                    <div id="shot-distribution-sliders" class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div class="input-group">
+                            <label for="ft-slider" class="flex justify-between">Slobodna Bacanja <span id="ft-value" class="font-bold">17%</span></label>
+                            <input type="range" id="ft-slider" min="0" max="100" value="17" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+                        </div>
+                        <div class="input-group">
+                            <label for="p2-slider" class="flex justify-between">2 Poena <span id="p2-value" class="font-bold">49%</span></label>
+                            <input type="range" id="p2-slider" min="0" max="100" value="49" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+                        </div>
+                        <div class="input-group">
+                            <label for="p3-slider" class="flex justify-between">3 Poena <span id="p3-value" class="font-bold">34%</span></label>
+                            <input type="range" id="p3-slider" min="0" max="100" value="34" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+                        </div>
+                    </div>
+                </section>
+
+                <section class="mb-8 p-6 bg-slate-50 border border-slate-200 rounded-lg">
                     <h3 class="font-bold text-lg text-slate-800 mb-4">2. Dodavanje Igara</h3>
                     <div id="betting-form" class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
                         <div class="input-group md:col-span-2">
@@ -216,6 +234,16 @@
             const calculationDisplay = document.getElementById('calculation-display');
             const lambdaHomeDisplay = document.getElementById('lambda-home-display');
             const lambdaAwayDisplay = document.getElementById('lambda-away-display');
+
+            // Sliders for point distribution
+            const ftSlider = document.getElementById('ft-slider');
+            const p2Slider = document.getElementById('p2-slider');
+            const p3Slider = document.getElementById('p3-slider');
+            const ftValue = document.getElementById('ft-value');
+            const p2Value = document.getElementById('p2-value');
+            const p3Value = document.getElementById('p3-value');
+            const allSliders = [ftSlider, p2Slider, p3Slider];
+
 
             let competitionData = null;
             let generatedBets = [];
@@ -603,16 +631,20 @@
                     return;
                 }
 
+                const p2Percent = parseInt(p2Slider.value, 10) / 100;
+                const p3Percent = parseInt(p3Slider.value, 10) / 100;
+                const ftPercent = parseInt(ftSlider.value, 10) / 100;
+
                 let lambda = 0;
                 switch(marketType) {
                     case 'Ukupno postignutih 2P':
-                        lambda = (mainLineData.total * 0.49) / 2;
+                        lambda = (mainLineData.total * p2Percent) / 2;
                         break;
                     case 'Ukupno postignutih 3P':
-                        lambda = (mainLineData.total * 0.34) / 3;
+                        lambda = (mainLineData.total * p3Percent) / 3;
                         break;
                     case 'Ukupno postignutih sl. bacanja':
-                        lambda = (mainLineData.total * 0.17) / 1;
+                        lambda = (mainLineData.total * ftPercent) / 1;
                         break;
                 }
                 
@@ -628,6 +660,70 @@
                 betOddOverInput.value = applyMargin(raw_odd_over).toFixed(2);
                 betOddUnderInput.value = applyMargin(raw_odd_under).toFixed(2);
             }
+
+            function handleSliderUpdate(changedSlider) {
+                const values = {
+                    ft: parseInt(ftSlider.value, 10),
+                    p2: parseInt(p2Slider.value, 10),
+                    p3: parseInt(p3Slider.value, 10)
+                };
+
+                const sliders = {
+                    ft: ftSlider,
+                    p2: p2Slider,
+                    p3: p3Slider
+                };
+
+                let changedKey = null;
+                if (changedSlider === ftSlider) changedKey = 'ft';
+                if (changedSlider === p2Slider) changedKey = 'p2';
+                if (changedSlider === p3Slider) changedKey = 'p3';
+
+                const remainder = 100 - values[changedKey];
+                const otherKeys = Object.keys(sliders).filter(k => k !== changedKey);
+                
+                const otherSlider1 = sliders[otherKeys[0]];
+                const otherSlider2 = sliders[otherKeys[1]];
+                
+                let oldVal1 = values[otherKeys[0]];
+                let oldVal2 = values[otherKeys[1]];
+                
+                const otherValuesSum = oldVal1 + oldVal2;
+                
+                let newVal1, newVal2;
+
+                if (otherValuesSum === 0) {
+                    newVal1 = remainder / 2;
+                    newVal2 = remainder / 2;
+                } else {
+                    const ratio1 = oldVal1 / otherValuesSum;
+                    newVal1 = remainder * ratio1;
+                    newVal2 = remainder - newVal1;
+                }
+
+                otherSlider1.value = Math.round(newVal1);
+                otherSlider2.value = Math.round(newVal2);
+                
+                let finalSum = Math.round(newVal1) + Math.round(newVal2) + values[changedKey];
+                if (finalSum !== 100) {
+                    let diff = 100 - finalSum;
+                    otherSlider1.value = parseInt(otherSlider1.value) + diff;
+                }
+
+                ftValue.textContent = `${ftSlider.value}%`;
+                p2Value.textContent = `${p2Slider.value}%`;
+                p3Value.textContent = `${p3Slider.value}%`;
+
+                const currentMarket = betMarketSelect.value;
+                const autoCalcHandicapMarkets = ['Ukupno postignutih 2P', 'Ukupno postignutih 3P', 'Ukupno postignutih sl. bacanja'];
+                if (autoCalcHandicapMarkets.includes(currentMarket)) {
+                    calculateAndSetHandicap(currentMarket);
+                }
+            }
+
+            allSliders.forEach(slider => {
+                slider.addEventListener('input', () => handleSliderUpdate(slider));
+            });
             
             function resetBetForm() {
                 betMarketSelect.selectedIndex = 0;
