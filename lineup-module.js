@@ -52,7 +52,7 @@ class LineupManager {
             if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
             this.lineupData = await response.json();
             this.lastUpdate = Date.now();
-            console.log('✅ Lineup data loaded');
+            console.log('✅ Lineup data loaded. Total lineups fetched:', this.lineupData.length);
             return this.lineupData;
         } catch (error) {
             console.error('⚠️ Could not load lineup data:', error.message);
@@ -65,32 +65,47 @@ class LineupManager {
     findCanonicalTeamName(searchName) {
         if (!searchName) return null;
         const normalized = searchName.trim().toLowerCase();
-        
+
         for (const [canonical, aliases] of Object.entries(this.teamMappings)) {
             if (canonical.toLowerCase() === normalized) return canonical;
             if (aliases.some(alias => alias.toLowerCase() === normalized)) return canonical;
         }
-        
+
         for (const [canonical, aliases] of Object.entries(this.teamMappings)) {
             const allNames = [canonical, ...aliases].map(name => name.toLowerCase());
             for (const name of allNames) {
                 if (name.includes(normalized) || normalized.includes(name)) return canonical;
             }
         }
-        
+
         return searchName; // Fallback na originalno ime
     }
 
     // Get lineup for a specific team
     getTeamLineup(teamName) {
         if (!this.lineupData || !teamName) return null;
-        
+
+        console.log(`[DEBUG] --------------------------------`);
+        console.log(`[DEBUG] Attempting to find lineup for: "${teamName}"`);
         const canonicalName = this.findCanonicalTeamName(teamName);
-        
-        return this.lineupData.find(lineup => {
+        console.log(`[DEBUG] Input name resolved to canonical: "${canonicalName}"`);
+
+        const foundLineup = this.lineupData.find(lineup => {
             const lineupCanonical = this.findCanonicalTeamName(lineup.team);
-            return lineupCanonical.toLowerCase() === canonicalName.toLowerCase();
+            // Detailed comparison log
+            const isMatch = lineupCanonical.toLowerCase() === canonicalName.toLowerCase();
+            if (isMatch) {
+                console.log(`[DEBUG] ✅ MATCH FOUND: "${canonicalName}" vs "${lineup.team}" (resolved to "${lineupCanonical}")`);
+            }
+            return isMatch;
         });
+
+        if (!foundLineup) {
+            console.error(`[DEBUG] ❌ Lineup NOT FOUND for "${teamName}". No matches in the fetched data.`);
+            console.log(`[DEBUG] Fetched team names were:`, this.lineupData.map(l => `"${l.team}"`));
+        }
+        console.log(`[DEBUG] --------------------------------`);
+        return foundLineup;
     }
 
     // Create detailed display for lineup
@@ -105,7 +120,7 @@ class LineupManager {
                 </div>
             `;
         }
-        
+
         const players = lineup.lineup.split(/;|,/).map(p => `<span class="player-tag">${p.trim()}</span>`).join('');
 
         return `
@@ -128,7 +143,7 @@ class LineupManager {
         }
         container.innerHTML = this.createDetailedDisplay(teamName);
     }
-    
+
     // Add CSS styles for the lineup display
     addStyles() {
         if (document.getElementById('lineup-styles')) return;
