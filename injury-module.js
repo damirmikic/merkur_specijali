@@ -1,6 +1,6 @@
 /**
  * Injury Display Module for Merkur Specijali
- * Integrates with /api/injuries endpoint and /api/mappings for team data
+ * Integrates with /api/injuries endpoint and a local JSON for team data
  */
 
 class InjuryManager {
@@ -12,16 +12,16 @@ class InjuryManager {
         this.cacheTimeout = 15 * 60 * 1000; // 15 minutes cache
     }
 
-    // Učitava mapiranja sa centralne baze
+    // Učitava mapiranja iz lokalnog JSON fajla
     async loadTeamMappings() {
         try {
-            const response = await fetch('/api/mappings');
-            if (!response.ok) throw new Error('Failed to fetch mappings');
+            const response = await fetch('/team-mappings.json'); // PROMENA OVDJE
+            if (!response.ok) throw new Error('Failed to fetch local mappings');
             const data = await response.json();
             this.teamMappings = data;
             return data;
         } catch (error) {
-            console.warn('Could not fetch global mappings for injuries, using empty fallback:', error);
+            console.warn('Could not fetch local mappings for injuries, using empty fallback:', error);
             this.teamMappings = {};
             return this.teamMappings;
         }
@@ -35,13 +35,13 @@ class InjuryManager {
             await this.loadInjuryData();
             this.addStyles();
             this.isInitialized = true;
-            console.log(`✅ ${this.constructor.name} initialized with global mappings`);
+            console.log(`✅ ${this.constructor.name} initialized with local mappings`);
         } catch (error) {
             console.error(`❌ ${this.constructor.name} initialization failed:`, error);
         }
     }
-
-    // Load injury data from API
+    
+    // Ostatak fajla ostaje nepromenjen...
     async loadInjuryData(forceRefresh = false) {
         if (!forceRefresh && this.injuryData && this.lastUpdate && (Date.now() - this.lastUpdate < this.cacheTimeout)) {
             return this.injuryData;
@@ -70,7 +70,6 @@ class InjuryManager {
         }
     }
 
-    // Find canonical team name
     findCanonicalTeamName(searchName) {
         if (!searchName) return null;
         const normalized = searchName.trim().toLowerCase();
@@ -87,10 +86,9 @@ class InjuryManager {
             }
         }
         
-        return searchName; // Fallback na originalno ime ako nema mapiranja
+        return searchName;
     }
 
-    // Get team injuries
     getTeamInjuries(teamName) {
         if (!this.injuryData || !teamName) return [];
         
@@ -113,9 +111,6 @@ class InjuryManager {
         return injuries;
     }
     
-    // Ostatak koda (getInjurySeverity, createInjuryIndicator, createDetailedDisplay, itd.) ostaje nepromenjen...
-
-    // Get injury severity
     getInjurySeverity(injuryInfo) {
         if (!injuryInfo) return 'unknown';
         const info = injuryInfo.toLowerCase();
@@ -125,7 +120,6 @@ class InjuryManager {
         return 'moderate';
     }
 
-    // Create injury indicator
     createInjuryIndicator(teamName) {
         const injuries = this.getTeamInjuries(teamName);
         if (injuries.length === 0) return '<span class="injury-badge safe" title="No injuries">✅</span>';
@@ -143,7 +137,6 @@ class InjuryManager {
         else return `<span class="injury-badge doubtful" title="❓ ${injuries.length} fitness doubts">❓${injuries.length}</span>`;
     }
 
-    // Create detailed display
     createDetailedDisplay(teamName) {
         const injuries = this.getTeamInjuries(teamName);
         if (injuries.length === 0) {
@@ -155,7 +148,6 @@ class InjuryManager {
         return `<div class="injury-panel has-injuries"><div class="injury-header"><h4>🏥 Injury Report</h4><div class="injury-summary"><span class="injury-count">${injuries.length} player${injuries.length !== 1 ? 's' : ''}</span><span class="risk-indicator ${riskLevel}">Risk: ${riskLevel.toUpperCase()}</span></div></div><div class="injury-list">${injuryList}</div>${impact > 0 ? `<div class="impact-note">📊 Estimated impact: ${impact.toFixed(1)}%</div>` : ''}</div>`;
     }
 
-    // Calculate injury impact
     calculateInjuryImpact(teamName) {
         const injuries = this.getTeamInjuries(teamName);
         if (injuries.length === 0) return 0;
@@ -173,7 +165,6 @@ class InjuryManager {
         return Math.min(impact, 30);
     }
 
-    // Display injuries in container
     displayInjuries(teamName, containerId) {
         const container = document.getElementById(containerId);
         if (!container) {
@@ -183,7 +174,6 @@ class InjuryManager {
         container.innerHTML = this.createDetailedDisplay(teamName);
     }
 
-    // Add injury indicator to element
     addInjuryIndicator(teamName, elementId) {
         const element = document.getElementById(elementId);
         if (!element) {
@@ -194,7 +184,6 @@ class InjuryManager {
         element.insertAdjacentHTML('beforeend', ` ${indicator}`);
     }
 
-    // Add CSS styles
     addStyles() {
         if (document.getElementById('injury-styles')) return;
         const styles = document.createElement('style');
