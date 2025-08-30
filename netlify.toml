@@ -25,18 +25,3 @@
   from = "/api/lineups"
   to = "/.netlify/functions/fetch-lineups"
   status = 200
-
-# NOVE RUTE za Supabase bazu mapiranja
-[[redirects]]
-  from = "/api/mappings"
-  to = "/.netlify/functions/get-mappings"
-  status = 200
-  force = false
-  conditions = { "http-method" = ["GET"] }
-
-[[redirects]]
-  from = "/api/mappings"
-  to = "/.netlify/functions/save-mappings"
-  status = 200
-  force = false
-  conditions = { "http-method" = ["POST"] }
