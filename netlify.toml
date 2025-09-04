@@ -25,3 +25,9 @@
   from = "/api/lineups"
   to = "/.netlify/functions/fetch-lineups"
   status = 200
+
+# Nova ruta za statistiku sa Eurobasketa
+[[redirects]]
+  from = "/api/eurobasket-stats"
+  to = "/.netlify/functions/fetch-eurobasket-stats"
+  status = 200
