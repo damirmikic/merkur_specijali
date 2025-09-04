@@ -477,12 +477,20 @@
                     const avg2PM = (homeStats['2PM'] + awayStats['2PM']) / 2;
                     const avg3PM = (homeStats['3PM'] + awayStats['3PM']) / 2;
                     const avgFTM = (homeStats['FTM'] + awayStats['FTM']) / 2;
+                    
+                    const tournamentAvg2PM = tournamentAverageDistribution.p2 / 100 * (tournamentAverageDistribution.ft + tournamentAverageDistribution.p2*2 + tournamentAverageDistribution.p3*3) / 2;
+                    const tournamentAvg3PM = tournamentAverageDistribution.p3 / 100 * (tournamentAverageDistribution.ft + tournamentAverageDistribution.p2*2 + tournamentAverageDistribution.p3*3) / 3;
+                    const tournamentAvgFTM = tournamentAverageDistribution.ft / 100 * (tournamentAverageDistribution.ft + tournamentAverageDistribution.p2*2 + tournamentAverageDistribution.p3*3);
 
-                    const totalPoints = (avg2PM * 2) + (avg3PM * 3) + avgFTM;
+                    const final2PM = (avg2PM + tournamentAvg2PM) / 2;
+                    const final3PM = (avg3PM + tournamentAvg3PM) / 2;
+                    const finalFTM = (avgFTM + tournamentAvgFTM) / 2;
+
+                    const totalPoints = (final2PM * 2) + (final3PM * 3) + finalFTM;
 
                     if (totalPoints > 0) {
-                        const p2 = Math.round(((avg2PM * 2) / totalPoints) * 100);
-                        const p3 = Math.round(((avg3PM * 3) / totalPoints) * 100);
+                        const p2 = Math.round(((final2PM * 2) / totalPoints) * 100);
+                        const p3 = Math.round(((final3PM * 3) / totalPoints) * 100);
                         const ft = 100 - p2 - p3;
                         
                         suggestedDistribution = { p2, p3, ft };
