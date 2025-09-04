@@ -85,6 +85,31 @@
             color: white;
             border-color: #ef4444;
         }
+        .stat-card {
+            background-color: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.75rem;
+            padding: 1rem;
+            margin-top: 1rem;
+        }
+        .stat-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+            gap: 0.75rem;
+        }
+        .stat-item {
+            text-align: center;
+        }
+        .stat-label {
+            font-size: 0.75rem;
+            color: #64748b;
+            font-weight: 500;
+        }
+        .stat-value {
+            font-size: 1.125rem;
+            color: #1e293b;
+            font-weight: 600;
+        }
     </style>
 </head>
 <body class="bg-gray-100 text-slate-800">
@@ -114,6 +139,8 @@
                         <select id="bball-match-select">
                             <option>Učitavanje mečeva...</option>
                         </select>
+                    </div>
+                    <div id="team-stats-container" class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4 hidden">
                     </div>
                     <div id="calculation-display" class="mt-4 grid grid-cols-2 gap-4 hidden">
                         <div>
@@ -240,6 +267,8 @@
             const calculationDisplay = document.getElementById('calculation-display');
             const lambdaHomeDisplay = document.getElementById('lambda-home-display');
             const lambdaAwayDisplay = document.getElementById('lambda-away-display');
+            const teamStatsContainer = document.getElementById('team-stats-container');
+
 
             // Sliders for point distribution
             const ftSlider = document.getElementById('ft-slider');
@@ -254,7 +283,8 @@
 
             let competitionData = null;
             let generatedBets = [];
-
+            let eurobasketStats = [];
+            
             const bettingMarkets = [
                 'Ukupno skokova', 'Ukupno asistencija', 
                 'Ukupno postignutih 2P', 'Ukupno postignutih 3P', 'Ukupno postignutih sl. bacanja',
@@ -304,6 +334,18 @@
                 } catch (error) {
                     console.error('Greška pri učitavanju košarkaških mečeva:', error);
                     bballMatchSelect.innerHTML = `<option value="">Greška: ${error.message}</option>`;
+                }
+            }
+
+            async function fetchEurobasketStats() {
+                try {
+                    const response = await fetch('/api/eurobasket-stats');
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    eurobasketStats = await response.json();
+                } catch (error) {
+                    console.error('Failed to fetch Eurobasket stats:', error);
                 }
             }
             
@@ -375,6 +417,35 @@
                 renderPreviewTable();
                 resetBetForm();
             }
+            
+            function createStatCard(teamName, stats) {
+                if (!stats) {
+                    return `<div class="stat-card"><h3>${teamName}</h3><p>Statistika nije dostupna.</p></div>`;
+                }
+
+                return `
+                    <div class="stat-card">
+                        <h3 class="text-lg font-bold text-slate-800 mb-2">${teamName}</h3>
+                        <div class="stat-grid">
+                            <div class="stat-item"><div class="stat-label">PTS</div><div class="stat-value">${stats.PTS}</div></div>
+                            <div class="stat-item"><div class="stat-label">2P%</div><div class="stat-value">${stats['2P%']}</div></div>
+                            <div class="stat-item"><div class="stat-label">3P%</div><div class="stat-value">${stats['3P%']}</div></div>
+                            <div class="stat-item"><div class="stat-label">RT</div><div class="stat-value">${stats.RT}</div></div>
+                            <div class="stat-item"><div class="stat-label">AS</div><div class="stat-value">${stats.AS}</div></div>
+                            <div class="stat-item"><div class="stat-label">TO</div><div class="stat-value">${stats.TO}</div></div>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            function displayTeamStats(homeTeamName, awayTeamName) {
+                 const homeStats = eurobasketStats.find(s => homeTeamName.includes(s.Team));
+                 const awayStats = eurobasketStats.find(s => awayTeamName.includes(s.Team));
+
+                 teamStatsContainer.innerHTML = createStatCard(homeTeamName, homeStats) + createStatCard(awayTeamName, awayStats);
+                 teamStatsContainer.classList.remove('hidden');
+            }
+
 
             function renderPreviewTable() {
                 bballPreviewTableBody.innerHTML = '';
@@ -781,18 +852,30 @@
                 }
             }
             
-            bballMatchSelect.addEventListener('change', () => {
+            bballMatchSelect.addEventListener('change', (e) => {
+                const selectedEvent = competitionData.events[e.target.value];
+                if (selectedEvent) {
+                    displayTeamStats(selectedEvent.home.name, selectedEvent.away.name);
+                } else {
+                    teamStatsContainer.classList.add('hidden');
+                }
                 resetSlidersToDefaults();
                 handleMarketSelectionChange();
             });
+
             betMarketSelect.addEventListener('change', handleMarketSelectionChange);
             addBetBtn.addEventListener('click', addBetToGenerator);
             resetBetBtn.addEventListener('click', resetBetForm);
             bballDownloadCsvBtn.addEventListener('click', downloadBballCsv);
             resetSlidersBtn.addEventListener('click', resetSlidersToDefaults);
 
-            populateBettingMarkets();
-            fetchBasketballApiEvents();
+            async function init() {
+                await fetchEurobasketStats();
+                populateBettingMarkets();
+                fetchBasketballApiEvents();
+            }
+
+            init();
         });
     </script>
 </body>
