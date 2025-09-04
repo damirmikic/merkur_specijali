@@ -434,11 +434,11 @@
                         <h3 class="text-lg font-bold text-slate-800 mb-2">${teamName}</h3>
                         <div class="stat-grid">
                             <div class="stat-item"><div class="stat-label">PTS</div><div class="stat-value">${stats.PTS}</div></div>
-                            <div class="stat-item"><div class="stat-label">2P%</div><div class="stat-value">${stats['2P%']}</div></div>
-                            <div class="stat-item"><div class="stat-label">3P%</div><div class="stat-value">${stats['3P%']}</div></div>
+                            <div class="stat-item"><div class="stat-label">2PM</div><div class="stat-value">${stats['2PM']}</div></div>
+                            <div class="stat-item"><div class="stat-label">3PM</div><div class="stat-value">${stats['3PM']}</div></div>
+                            <div class="stat-item"><div class="stat-label">FTM</div><div class="stat-value">${stats['FTM']}</div></div>
                             <div class="stat-item"><div class="stat-label">RT</div><div class="stat-value">${stats.RT}</div></div>
                             <div class="stat-item"><div class="stat-label">AS</div><div class="stat-value">${stats.AS}</div></div>
-                            <div class="stat-item"><div class="stat-label">TO</div><div class="stat-value">${stats.TO}</div></div>
                         </div>
                     </div>
                 `;
@@ -450,6 +450,35 @@
 
                  teamStatsContainer.innerHTML = createStatCard(homeTeamName, homeStats) + createStatCard(awayTeamName, awayStats);
                  teamStatsContainer.classList.remove('hidden');
+            }
+            
+            function updateShotDistributionSliders(homeTeamName, awayTeamName) {
+                const homeStats = eurobasketStats.find(s => homeTeamName.includes(teamNameMapping[s.Team]));
+                const awayStats = eurobasketStats.find(s => awayTeamName.includes(teamNameMapping[s.Team]));
+
+                if (homeStats && awayStats) {
+                    const avg2PM = (homeStats['2PM'] + awayStats['2PM']) / 2;
+                    const avg3PM = (homeStats['3PM'] + awayStats['3PM']) / 2;
+                    const avgFTM = (homeStats['FTM'] + awayStats['FTM']) / 2;
+
+                    const totalPoints = (avg2PM * 2) + (avg3PM * 3) + avgFTM;
+
+                    if (totalPoints > 0) {
+                        const p2Percent = Math.round(((avg2PM * 2) / totalPoints) * 100);
+                        const p3Percent = Math.round(((avg3PM * 3) / totalPoints) * 100);
+                        const ftPercent = 100 - p2Percent - p3Percent;
+
+                        p2Slider.value = p2Percent;
+                        p3Slider.value = p3Percent;
+                        ftSlider.value = ftPercent;
+
+                        p2Value.textContent = `${p2Percent}%`;
+                        p3Value.textContent = `${p3Percent}%`;
+                        ftValue.textContent = `${ftPercent}%`;
+                    }
+                } else {
+                    resetSlidersToDefaults();
+                }
             }
 
 
@@ -862,10 +891,11 @@
                 const selectedEvent = competitionData.events[e.target.value];
                 if (selectedEvent) {
                     displayTeamStats(selectedEvent.home.name, selectedEvent.away.name);
+                    updateShotDistributionSliders(selectedEvent.home.name, selectedEvent.away.name);
                 } else {
                     teamStatsContainer.classList.add('hidden');
+                    resetSlidersToDefaults();
                 }
-                resetSlidersToDefaults();
                 handleMarketSelectionChange();
             });
 
