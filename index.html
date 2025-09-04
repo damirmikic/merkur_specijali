@@ -640,23 +640,27 @@
         const probOver = (lambda, k) => 1 - poissonCDF(lambda, k);
         const probUnder = (lambda, k) => poissonCDF(lambda, k - 1);
         
-        const scoreAndWin = (muTeam, muOpponent, playerLambda, maxGoals = 10) => {
-            let s = playerLambda / muTeam;
-            let prob = 0;
-            
-            for (let gTeam = 0; gTeam <= maxGoals; gTeam++) {
-                let pTeam = poissonPMF(muTeam, gTeam);
-                for (let gOpponent = 0; gOpponent <= maxGoals; gOpponent++) {
-                    let pOpponent = poissonPMF(muOpponent, gOpponent);
-                    
-                    if (gTeam > gOpponent) {
-                        let pPlayer = 1 - Math.pow(1 - s, gTeam);
-                        prob += pTeam * pOpponent * pPlayer;
-                    }
-                }
-            }
-            
-            return prob;
+        const scoreAndWin = (muTeam, muOpponent, pScore, maxGoals = 10) => {
+             const lambdaPlayer = -Math.log(1 - pScore);
+             const lambdaOther = muTeam - lambdaPlayer;
+             if (lambdaOther < 0) return 0;
+
+             let winIfScore = 0;
+             let probScore = 0;
+
+             for (let d = 1; d <= maxGoals; d++) {
+               const pD = poissonPMF(d, lambdaPlayer);
+               probScore += pD;
+               for (let o = 0; o <= maxGoals; o++) {
+                 const pO = poissonPMF(o, lambdaOther);
+                 const totalGoals = d + o;
+                 const pOppLess = poissonCDF(totalGoals - 1, muOpponent);
+                 winIfScore += pD * pO * pOppLess;
+               }
+             }
+             if (probScore === 0) return 0;
+             const pWinGivenScore = winIfScore / probScore;
+             return probScore * pWinGivenScore;
         };
         
         const get24hTime = (date = new Date()) => {
@@ -1013,7 +1017,8 @@
                             if (teamLambda > 0 && teamWinOdd > 1) {
                                 const opponentSide = teamSide === 'home' ? 'away' : 'home';
                                 const opponentLambda = opponentSide === 'home' ? event.lambdaHome : event.lambdaAway;
-                                const probScoresAndWins = scoreAndWin(teamLambda, opponentLambda, playerLambda, 15);
+                                const pScore = oddToProb(baseOdds['daje-gol']);
+                                const probScoresAndWins = scoreAndWin(teamLambda, opponentLambda, pScore, 15);
                                 const teamName = teamSide === 'home' ? event.home.name : event.away.name;
                                 createBet(playerName, 'daje gol i', `${teamName} pobedjuje`, probToOdd(probScoresAndWins), true);
                             }
