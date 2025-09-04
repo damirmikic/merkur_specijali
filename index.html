@@ -618,6 +618,7 @@
         let factCache = [1];
         const factorial = n => {
             if (n < 0) return NaN;
+            if (n > 170) return Infinity;
             if (factCache[n] !== undefined) return factCache[n];
             let val = factCache[factCache.length - 1];
             for (let i = factCache.length; i <= n; i++) {
@@ -631,6 +632,7 @@
         const oddToProb = o => (o <= 1) ? 1 : 1 / o;
         const getLambdaFromProb = p => (p <= 0 || p >= 1) ? 0 : -Math.log(1 - p);
         const poissonCDF = (lambda, k) => {
+            if (k < 0) return 0;
             let sum = 0;
             for (let i = 0; i <= k; i++) {
                 sum += poissonPMF(lambda, i);
@@ -641,7 +643,9 @@
         const probUnder = (lambda, k) => poissonCDF(lambda, k - 1);
         
         const scoreAndWin = (muTeam, muOpponent, pScore, maxGoals = 10) => {
-             const lambdaPlayer = -Math.log(1 - pScore);
+             const lambdaPlayer = getLambdaFromProb(pScore);
+             if (lambdaPlayer === 0) return 0;
+
              const lambdaOther = muTeam - lambdaPlayer;
              if (lambdaOther < 0) return 0;
 
@@ -649,12 +653,12 @@
              let probScore = 0;
 
              for (let d = 1; d <= maxGoals; d++) {
-               const pD = poissonPMF(d, lambdaPlayer);
+               const pD = poissonPMF(lambdaPlayer, d);
                probScore += pD;
                for (let o = 0; o <= maxGoals; o++) {
-                 const pO = poissonPMF(o, lambdaOther);
+                 const pO = poissonPMF(lambdaOther, o);
                  const totalGoals = d + o;
-                 const pOppLess = poissonCDF(totalGoals - 1, muOpponent);
+                 const pOppLess = poissonCDF(muOpponent, totalGoals - 1);
                  winIfScore += pD * pO * pOppLess;
                }
              }
