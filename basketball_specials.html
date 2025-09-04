@@ -284,6 +284,12 @@
             let competitionData = null;
             let generatedBets = [];
             let eurobasketStats = [];
+            const teamNameMapping = {
+                "BEL": "Belgium", "BIH": "Bosnia and Herzegovina", "CYP": "Cyprus", "CZE": "Czech Republic", "ENG": "England",
+                "ESP": "Spain", "EST": "Estonia", "FIN": "Finland", "FRA": "France", "GEO": "Georgia", "GER": "Germany", "GRE": "Greece",
+                "ISL": "Iceland", "ISR": "Israel", "ITA": "Italy", "LAT": "Latvia", "LTU": "Lithuania", "MNT": "Montenegro",
+                "POL": "Poland", "POR": "Portugal", "SLO": "Slovenia", "SRB": "Serbia", "SWE": "Sweden", "TUR": "Turkey"
+            };
             
             const bettingMarkets = [
                 'Ukupno skokova', 'Ukupno asistencija', 
@@ -439,8 +445,8 @@
             }
             
             function displayTeamStats(homeTeamName, awayTeamName) {
-                 const homeStats = eurobasketStats.find(s => homeTeamName.includes(s.Team));
-                 const awayStats = eurobasketStats.find(s => awayTeamName.includes(s.Team));
+                 const homeStats = eurobasketStats.find(s => homeTeamName.includes(teamNameMapping[s.Team]));
+                 const awayStats = eurobasketStats.find(s => awayTeamName.includes(teamNameMapping[s.Team]));
 
                  teamStatsContainer.innerHTML = createStatCard(homeTeamName, homeStats) + createStatCard(awayTeamName, awayStats);
                  teamStatsContainer.classList.remove('hidden');
