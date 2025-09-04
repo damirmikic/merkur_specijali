@@ -157,23 +157,26 @@
                 <section class="mb-8 p-6 bg-slate-50 border border-slate-200 rounded-lg">
                     <div class="flex justify-between items-center mb-4">
                         <h3 class="font-bold text-lg text-slate-800">Podešavanje Udela Poena</h3>
-                        <button id="reset-sliders-btn" class="action-btn secondary !py-1 !px-3 text-xs">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-rotate-ccw"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
-                            Resetuj Vrednosti
-                        </button>
+                        <div class="flex gap-2">
+                           <button id="apply-suggested-btn" class="action-btn primary !py-1 !px-3 text-xs hidden">Primeni Sugerisane Vrednosti</button>
+                           <button id="reset-sliders-btn" class="action-btn secondary !py-1 !px-3 text-xs">
+                               <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-rotate-ccw"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+                               Resetuj Vrednosti
+                           </button>
+                        </div>
                     </div>
                     <div id="shot-distribution-sliders" class="grid grid-cols-1 md:grid-cols-3 gap-6">
                         <div class="input-group">
-                            <label for="ft-slider" class="flex justify-between">Slobodna Bacanja <span id="ft-value" class="font-bold">17%</span></label>
-                            <input type="range" id="ft-slider" min="0" max="100" value="17" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+                            <label for="ft-slider" class="flex justify-between">Slobodna Bacanja <span id="ft-value" class="font-bold"></span></label>
+                            <input type="range" id="ft-slider" min="0" max="100" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
                         </div>
                         <div class="input-group">
-                            <label for="p2-slider" class="flex justify-between">2 Poena <span id="p2-value" class="font-bold">49%</span></label>
-                            <input type="range" id="p2-slider" min="0" max="100" value="49" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+                            <label for="p2-slider" class="flex justify-between">2 Poena <span id="p2-value" class="font-bold"></span></label>
+                            <input type="range" id="p2-slider" min="0" max="100" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
                         </div>
                         <div class="input-group">
-                            <label for="p3-slider" class="flex justify-between">3 Poena <span id="p3-value" class="font-bold">34%</span></label>
-                            <input type="range" id="p3-slider" min="0" max="100" value="34" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+                            <label for="p3-slider" class="flex justify-between">3 Poena <span id="p3-value" class="font-bold"></span></label>
+                            <input type="range" id="p3-slider" min="0" max="100" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
                         </div>
                     </div>
                 </section>
@@ -268,6 +271,7 @@
             const lambdaHomeDisplay = document.getElementById('lambda-home-display');
             const lambdaAwayDisplay = document.getElementById('lambda-away-display');
             const teamStatsContainer = document.getElementById('team-stats-container');
+            const applySuggestedBtn = document.getElementById('apply-suggested-btn');
 
 
             // Sliders for point distribution
@@ -284,6 +288,9 @@
             let competitionData = null;
             let generatedBets = [];
             let eurobasketStats = [];
+            let tournamentAverageDistribution = { ft: 17, p2: 49, p3: 34 };
+            let suggestedDistribution = null;
+
             const teamNameMapping = {
                 "BEL": "Belgium", "BIH": "Bosnia and Herzegovina", "CYP": "Cyprus", "CZE": "Czech Republic", "ENG": "England",
                 "ESP": "Spain", "EST": "Estonia", "FIN": "Finland", "FRA": "France", "GEO": "Georgia", "GER": "Germany", "GRE": "Greece",
@@ -452,7 +459,17 @@
                  teamStatsContainer.classList.remove('hidden');
             }
             
-            function updateShotDistributionSliders(homeTeamName, awayTeamName) {
+            function updateShotDistributionSliders(p2Percent, p3Percent, ftPercent) {
+                p2Slider.value = p2Percent;
+                p3Slider.value = p3Percent;
+                ftSlider.value = ftPercent;
+
+                p2Value.textContent = `${p2Percent}%`;
+                p3Value.textContent = `${p3Percent}%`;
+                ftValue.textContent = `${ftPercent}%`;
+            }
+            
+            function calculateAndShowSuggestedDistribution(homeTeamName, awayTeamName) {
                 const homeStats = eurobasketStats.find(s => homeTeamName.includes(teamNameMapping[s.Team]));
                 const awayStats = eurobasketStats.find(s => awayTeamName.includes(teamNameMapping[s.Team]));
 
@@ -464,21 +481,17 @@
                     const totalPoints = (avg2PM * 2) + (avg3PM * 3) + avgFTM;
 
                     if (totalPoints > 0) {
-                        const p2Percent = Math.round(((avg2PM * 2) / totalPoints) * 100);
-                        const p3Percent = Math.round(((avg3PM * 3) / totalPoints) * 100);
-                        const ftPercent = 100 - p2Percent - p3Percent;
-
-                        p2Slider.value = p2Percent;
-                        p3Slider.value = p3Percent;
-                        ftSlider.value = ftPercent;
-
-                        p2Value.textContent = `${p2Percent}%`;
-                        p3Value.textContent = `${p3Percent}%`;
-                        ftValue.textContent = `${ftPercent}%`;
+                        const p2 = Math.round(((avg2PM * 2) / totalPoints) * 100);
+                        const p3 = Math.round(((avg3PM * 3) / totalPoints) * 100);
+                        const ft = 100 - p2 - p3;
+                        
+                        suggestedDistribution = { p2, p3, ft };
+                        applySuggestedBtn.classList.remove('hidden');
+                        return;
                     }
-                } else {
-                    resetSlidersToDefaults();
                 }
+                suggestedDistribution = null;
+                applySuggestedBtn.classList.add('hidden');
             }
 
 
@@ -835,15 +848,7 @@
             }
 
              function resetSlidersToDefaults() {
-                ftSlider.value = 17;
-                p2Slider.value = 49;
-                p3Slider.value = 34;
-
-                ftValue.textContent = '17%';
-                p2Value.textContent = '49%';
-                p3Value.textContent = '34%';
-                
-                handleMarketSelectionChange();
+                updateShotDistributionSliders(tournamentAverageDistribution.p2, tournamentAverageDistribution.p3, tournamentAverageDistribution.ft);
             }
 
             allSliders.forEach(slider => {
@@ -891,12 +896,19 @@
                 const selectedEvent = competitionData.events[e.target.value];
                 if (selectedEvent) {
                     displayTeamStats(selectedEvent.home.name, selectedEvent.away.name);
-                    updateShotDistributionSliders(selectedEvent.home.name, selectedEvent.away.name);
+                    calculateAndShowSuggestedDistribution(selectedEvent.home.name, selectedEvent.away.name);
                 } else {
                     teamStatsContainer.classList.add('hidden');
+                    applySuggestedBtn.classList.add('hidden');
                     resetSlidersToDefaults();
                 }
                 handleMarketSelectionChange();
+            });
+            
+            applySuggestedBtn.addEventListener('click', () => {
+                if (suggestedDistribution) {
+                    updateShotDistributionSliders(suggestedDistribution.p2, suggestedDistribution.p3, suggestedDistribution.ft);
+                }
             });
 
             betMarketSelect.addEventListener('change', handleMarketSelectionChange);
@@ -907,6 +919,19 @@
 
             async function init() {
                 await fetchEurobasketStats();
+
+                const total2PM = eurobasketStats.reduce((sum, team) => sum + team['2PM'], 0);
+                const total3PM = eurobasketStats.reduce((sum, team) => sum + team['3PM'], 0);
+                const totalFTM = eurobasketStats.reduce((sum, team) => sum + team['FTM'], 0);
+                const totalPoints = (total2PM * 2) + (total3PM * 3) + totalFTM;
+
+                if (totalPoints > 0) {
+                    tournamentAverageDistribution.p2 = Math.round(((total2PM * 2) / totalPoints) * 100);
+                    tournamentAverageDistribution.p3 = Math.round(((total3PM * 3) / totalPoints) * 100);
+                    tournamentAverageDistribution.ft = 100 - tournamentAverageDistribution.p2 - tournamentAverageDistribution.p3;
+                }
+                
+                resetSlidersToDefaults();
                 populateBettingMarkets();
                 fetchBasketballApiEvents();
             }
