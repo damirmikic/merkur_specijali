@@ -472,6 +472,9 @@
                     <h2 class="text-xl sm:text-2xl font-bold text-slate-800 mb-6 text-center">Pregled Generisanih Kvota</h2>
                      <div class="flex items-center justify-between mb-4">
                         <p id="preview-match-name" class="text-sm font-medium text-slate-600"></p>
+                        <div id="csv-datetime-preview" class="text-sm font-medium text-red-600 border border-red-400 rounded-md px-3 py-1">
+                            Datum i Vreme za CSV: <span id="csv-datetime-value" class="font-bold"></span>
+                        </div>
                         <div class="flex items-center gap-2">
                              <input type="text" id="csv-match-name" placeholder="MATCH_NAME" class="input-group input !w-auto text-sm">
                              <input type="text" id="csv-league-name" placeholder="LEAGUE_NAME" class="input-group input !w-auto text-sm">
@@ -984,7 +987,6 @@
                     let odd_2plus_final = applyMarginToOdd(odd_2plus_raw, 20);
                     createBet(playerName, 'daje', '2+ golova', odd_2plus_final, false);
 
-                    // START OF FIX: Check 2+ goals odd before creating 3+
                     const formatted_odd_2plus = formatOdd(odd_2plus_final);
 
                     if (formatted_odd_2plus !== '60.00') {
@@ -993,7 +995,6 @@
                         let odd_3plus_final = applyMarginToOdd(odd_3plus_raw, 30);
                         createBet(playerName, 'daje', '3+ golova', odd_3plus_final, false);
                     }
-                    // END OF FIX
 
                     const lambda_1h = playerLambda * 0.44;
                     const lambda_2h = playerLambda * 0.56;
@@ -1222,6 +1223,25 @@
                 return;
             }
 
+            const csvDatetimeValue = $('#csv-datetime-value');
+            const dateVal = $('#kickoff-date').value;
+            const timeVal = $('#kickoff-time').value;
+            let date, time;
+
+            if (dateVal) {
+                const [y, m, d] = dateVal.split('-');
+                date = `${d}.${m}.${y}`;
+            } else {
+                const now = new Date();
+                date = `${String(now.getDate()).padStart(2, '0')}.${String(now.getMonth() + 1).padStart(2, '0')}.${now.getFullYear()}`;
+            }
+            
+            time = timeVal || get24hTime(new Date());
+
+            if(csvDatetimeValue) {
+                csvDatetimeValue.textContent = `${date} ${time}`;
+            }
+
              if (currentTab === 'players') {
                 $('#preview-match-name').textContent = event ? `${event.home.name} vs ${event.away.name}` : 'Igrači';
                 $('#csv-match-name').value = $('#match-name').value || 'MATCH';
@@ -1264,7 +1284,6 @@
             const header = "Datum,Vreme,Sifra,Domacin,Gost,1,X,2,GR,U,O,Yes,No\r\n";
             let csvContent = header;
             
-            // START OF FIX: Ensure date and time are always read from inputs for CSV
             const dateVal = $('#kickoff-date').value;
             const timeVal = $('#kickoff-time').value;
             let date, time;
@@ -1278,7 +1297,6 @@
             }
             
             time = timeVal || get24hTime(new Date());
-            // END OF FIX
 
             const matchName = $('#csv-match-name').value;
             const leagueName = $('#csv-league-name').value;
