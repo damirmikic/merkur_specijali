@@ -565,7 +565,7 @@
         let currentTab = 'players';
         
         // --- Manual Mode & Team Name Logic ---
-        on(manualEntryBtn, () => {
+        on(manualEntryBtn, 'click', () => {
             isManualMode = !isManualMode;
             if (isManualMode) {
                 apiInputs.classList.add('hidden');
@@ -984,6 +984,7 @@
                     let odd_2plus_final = applyMarginToOdd(odd_2plus_raw, 20);
                     createBet(playerName, 'daje', '2+ golova', odd_2plus_final, false);
 
+                    // START OF FIX: Check 2+ goals odd before creating 3+
                     const formatted_odd_2plus = formatOdd(odd_2plus_final);
 
                     if (formatted_odd_2plus !== '60.00') {
@@ -992,6 +993,7 @@
                         let odd_3plus_final = applyMarginToOdd(odd_3plus_raw, 30);
                         createBet(playerName, 'daje', '3+ golova', odd_3plus_final, false);
                     }
+                    // END OF FIX
 
                     const lambda_1h = playerLambda * 0.44;
                     const lambda_2h = playerLambda * 0.56;
@@ -1261,14 +1263,22 @@
 
             const header = "Datum,Vreme,Sifra,Domacin,Gost,1,X,2,GR,U,O,Yes,No\r\n";
             let csvContent = header;
-
-            const dateVal = $('#kickoff-date').value || new Date().toISOString().split('T')[0];
-            const timeVal = $('#kickoff-time').value || get24hTime(new Date());
+            
+            // START OF FIX: Ensure date and time are always read from inputs for CSV
+            const dateVal = $('#kickoff-date').value;
+            const timeVal = $('#kickoff-time').value;
             let date, time;
 
-            const [y, m, d] = dateVal.split('-');
-            date = `${d}.${m}.${y}`;
-            time = timeVal;
+            if (dateVal) {
+                const [y, m, d] = dateVal.split('-');
+                date = `${d}.${m}.${y}`;
+            } else {
+                const now = new Date();
+                date = `${String(now.getDate()).padStart(2, '0')}.${String(now.getMonth() + 1).padStart(2, '0')}.${now.getFullYear()}`;
+            }
+            
+            time = timeVal || get24hTime(new Date());
+            // END OF FIX
 
             const matchName = $('#csv-match-name').value;
             const leagueName = $('#csv-league-name').value;
