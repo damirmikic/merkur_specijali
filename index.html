@@ -1537,39 +1537,53 @@
             if (!selections) return null;
 
             let bestLine = null;
-            let minProbDiff = Infinity;
+            let minOddDiff = Infinity;
 
-            const uniqueLines = [...new Set(selections.map(s => s.params.replace('total=', '')))];
+            const lines = {};
+            selections.forEach(sel => {
+                const totalMatch = sel.params.match(/total=([\d.]+)/);
+                if (totalMatch) {
+                    const total = totalMatch[1];
+                    if (!lines[total]) lines[total] = {};
+                    lines[total][sel.outcome] = sel.price;
+                }
+            });
 
-            for (const lineName of uniqueLines) {
-                const overSelection = selections.find(s => s.outcome === 'over' && s.params === `total=${lineName}`);
-                if (overSelection && overSelection.probability) {
-                    const diff = Math.abs(overSelection.probability - 0.5);
-                    if (diff < minProbDiff) {
-                        minProbDiff = diff;
-                        bestLine = lineName;
+            for (const total in lines) {
+                if (lines[total].over && lines[total].under) {
+                    const diff = Math.abs(lines[total].over - lines[total].under);
+                    if (diff < minOddDiff) {
+                        minOddDiff = diff;
+                        bestLine = total;
                     }
                 }
             }
             
-            if(!bestLine && uniqueLines.length > 0) {
-                bestLine = uniqueLines[0];
-            }
-
             if (bestLine) {
-                const overSelection = selections.find(s => s.outcome === 'over' && s.params === `total=${bestLine}`);
-                const probOver = oddToProb(overSelection.price);
-                let lambda = 0;
-                let minError = Infinity;
-                for (let l = 0.1; l < 20; l += 0.05) {
-                    const p_over = 1 - poissonCDF(l, parseFloat(bestLine));
-                    const error = Math.abs(p_over - probOver);
-                    if (error < minError) {
-                        minError = error;
-                        lambda = l;
+                const overOdd = lines[bestLine].over;
+                const underOdd = lines[bestLine].under;
+
+                if (overOdd && underOdd) {
+                    const probOverRaw = 1 / overOdd;
+                    const probUnderRaw = 1 / underOdd;
+                    
+                    const totalProb = probOverRaw + probUnderRaw;
+                    const probOverNormalized = probOverRaw / totalProb;
+
+                    let lambda = 0;
+                    let minError = Infinity;
+                    const lineValue = parseFloat(bestLine);
+
+                    for (let l = 0.1; l < 15; l += 0.01) { 
+                        const p_over_calculated = 1 - poissonCDF(l, Math.floor(lineValue));
+                        const error = Math.abs(p_over_calculated - probOverNormalized);
+                        if (error < minError) {
+                            minError = error;
+                            lambda = l;
+                        }
                     }
+                    return lambda;
                 }
-                return lambda;
             }
             return null;
         };
