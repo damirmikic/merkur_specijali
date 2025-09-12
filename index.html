@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Odds Generator</title>
+    <title>Odds Generator | Modern UI</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="injury-module.js"></script>
     <script src="lineup-module.js"></script>
@@ -1308,7 +1308,15 @@
                         if (selection.status === 'SELECTION_ENABLED') {
                             const playerName = parsePlayerNameFromOutcome(selection.outcome);
                             const playerInfo = Object.values(event.players || {}).find(p => p.name === playerName);
-                            availableApiPlayers.push({ name: playerName, goalscorerOdd: selection.price, teamSide: playerInfo ? playerInfo.team.toLowerCase() : 'unknown' });
+                            let teamSide = 'unknown';
+                            if (playerInfo && playerInfo.team) {
+                                if (playerInfo.team === event.home.name) {
+                                    teamSide = 'home';
+                                } else if (playerInfo.team === event.away.name) {
+                                    teamSide = 'away';
+                                }
+                            }
+                            availableApiPlayers.push({ name: playerName, goalscorerOdd: selection.price, teamSide: teamSide });
                         }
                      });
                 }
