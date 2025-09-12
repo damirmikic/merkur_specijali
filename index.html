@@ -409,6 +409,89 @@
             const $ = (selector) => document.querySelector(selector);
             const $$ = (selector) => document.querySelectorAll(selector);
             const on = (element, event, handler) => element.addEventListener(event, handler);
+            
+            // --- HELPER FUNCTIONS --- (Re-added)
+            function findMarketLine(event, marketKey, submarketKey) {
+                try {
+                    const selections = event.markets?.[marketKey]?.submarkets?.[submarketKey]?.selections;
+                    if (!selections || selections.length === 0) return null;
+
+                    let minDiff = Infinity;
+                    let mainLineTotal = null;
+
+                    const totals = {};
+                    selections.forEach(sel => {
+                        const totalMatch = sel.params.match(/total=([\d.]+)/);
+                        if (totalMatch) {
+                            const total = totalMatch[1];
+                            if (!totals[total]) totals[total] = {};
+                            totals[total][sel.outcome] = sel.price;
+                        }
+                    });
+
+                    for (const total in totals) {
+                        if (totals[total].over && totals[total].under) {
+                            const diff = Math.abs(totals[total].over - totals[total].under);
+                            if (diff < minDiff) {
+                                minDiff = diff;
+                                mainLineTotal = parseFloat(total);
+                            }
+                        }
+                    }
+                    return mainLineTotal;
+                } catch (e) {
+                    return null;
+                }
+            }
+            
+            function calculateTeamLambdas(event) {
+                try {
+                    const matchOdds = event.markets['soccer.match_odds']?.submarkets['period=ft']?.selections;
+                    const totalGoalsMarket = event.markets['soccer.total_goals']?.submarkets['period=ft']?.selections;
+
+                    if (!matchOdds || !totalGoalsMarket) return { lambdaHome: null, lambdaAway: null };
+
+                    const homePrice = matchOdds.find(s => s.outcome === 'home')?.price;
+                    const awayPrice = matchOdds.find(s => s.outcome === 'away')?.price;
+                    const mainLine = findMarketLine(event, 'soccer.total_goals', 'period=ft');
+                    const overPrice = totalGoalsMarket.find(s => s.outcome === 'over' && s.params.includes(`total=${mainLine}`))?.price;
+                    const underPrice = totalGoalsMarket.find(s => s.outcome === 'under' && s.params.includes(`total=${mainLine}`))?.price;
+
+                    if (!homePrice || !awayPrice || !overPrice || !underPrice) return { lambdaHome: null, lambdaAway: null };
+
+                    const [lambdaHome, lambdaAway] = expectedGoals(overPrice, underPrice, homePrice, awayPrice);
+                    return { lambdaHome, lambdaAway };
+                } catch (e) {
+                    return { lambdaHome: null, lambdaAway: null };
+                }
+            }
+            
+             function calculateTeamCornerLambdas(event, totalCorners) {
+                try {
+                    const teamTotals = event.markets['soccer.team_total_corners']?.submarkets['period=ft_corners']?.selections;
+                    if (!teamTotals || !totalCorners) return { lambdaHome: totalCorners * 0.55, lambdaAway: totalCorners * 0.45 };
+                    
+                    const homeLine = findMarketLine(event, 'soccer.team_total_corners', 'period=ft_corners&team=home');
+                    const awayLine = findMarketLine(event, 'soccer.team_total_corners', 'period=ft_corners&team=away');
+
+                    if(homeLine && awayLine) {
+                         const ratio = homeLine / (homeLine + awayLine);
+                         return { lambdaHome: totalCorners * ratio, lambdaAway: totalCorners * (1 - ratio) };
+                    }
+                    return { lambdaHome: totalCorners * 0.55, lambdaAway: totalCorners * 0.45 };
+
+                } catch(e) {
+                    if(totalCorners) return { lambdaHome: totalCorners * 0.55, lambdaAway: totalCorners * 0.45 };
+                    return { lambdaHome: null, lambdaAway: null };
+                }
+            }
+            
+            function setLambdaInput(input, value, defaultValue) {
+                if (input) {
+                    input.value = value ? value.toFixed(2) : defaultValue.toFixed(2);
+                }
+            }
+
 
             // New functions for expected goals calculation
             function factorial(number) {
@@ -1377,7 +1460,7 @@
                 if (odd) $('#team-win-odd').value = odd;
                 const teamName = selectedOption.textContent;
 
-                // FIX 1: Update Match Name
+                // Update Match Name
                 if (selectedOption.value !== 'all') {
                     $('#match-name').value = teamName;
                 } else {
@@ -1386,14 +1469,9 @@
                         $('#match-name').value = `${event.home.name} vs ${event.away.name}`;
                     }
                 }
-
-                // FIX 2: Filter API Player Dropdown
-                const selectedTeamSide = e.target.value;
-                const playersToDisplay = selectedTeamSide === 'all' 
-                    ? availableApiPlayers 
-                    : availableApiPlayers.filter(p => p.teamSide === selectedTeamSide);
-                populateApiPlayerSelect(playersToDisplay);
-
+                
+                // NO LONGER FILTERING - ALWAYS SHOW ALL
+                populateApiPlayerSelect(availableApiPlayers);
 
                 // Existing injury/lineup logic
                 const injuryContainer = $('#team-injury-display');
