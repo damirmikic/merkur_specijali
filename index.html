@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Odds Generator | Modern UI</title>
+    <title>Odds Generator</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="injury-module.js"></script>
     <script src="lineup-module.js"></script>
@@ -410,7 +410,7 @@
             const $$ = (selector) => document.querySelectorAll(selector);
             const on = (element, event, handler) => element.addEventListener(event, handler);
             
-            // --- HELPER FUNCTIONS --- (Re-added)
+            // --- HELPER FUNCTIONS ---
             function findMarketLine(event, marketKey, submarketKey) {
                 try {
                     const selections = event.markets?.[marketKey]?.submarkets?.[submarketKey]?.selections;
