@@ -886,20 +886,26 @@
                     card.querySelectorAll('.player-base-odd').forEach(input => baseOdds[input.dataset.oddType] = parseFloat(input.value) || 0);
                     
                     if (baseOdds['daje-gol'] > 0) {
-                        const prob_goal = oddToProb(baseOdds['daje-gol']);
-                        const prob_no_goal = 1 - prob_goal;
-                        const prob_half = 1 - Math.sqrt(prob_no_goal);
+                        const playerLambda = getLambdaFromProb(oddToProb(baseOdds['daje-gol']));
                         
+                        // Proračun za poluvremena po novoj logici
+                        const lambda_p1 = playerLambda * 0.44;
+                        const lambda_p2 = playerLambda * 0.56;
+                        const prob_p1 = 1 - poissonPMF(lambda_p1, 0);
+                        const prob_p2 = 1 - poissonPMF(lambda_p2, 0);
+
+                        // Proračun za gol u oba poluvremena sa smanjenjem od 20%
+                        const prob_both_halves = (prob_p1 * prob_p2) * 0.8;
+
                         createBet(playerName, 'daje', 'gol', baseOdds['daje-gol'], false);
                         
-                        const playerLambda = getLambdaFromProb(prob_goal);
                         const p_poisson = [poissonPMF(playerLambda, 0), poissonPMF(playerLambda, 1), poissonPMF(playerLambda, 2)];
                         const prob_2plus = 1 - p_poisson[0] - p_poisson[1];
                         createBet(playerName, 'daje', '2+ golova', probToOdd(prob_2plus), false);
                         
-                        createBet(playerName, 'daje gol', 'u 1. pol.', probToOdd(prob_half));
-                        createBet(playerName, 'daje gol', 'u 2. pol.', probToOdd(prob_half));
-                        createBet(playerName, 'daje gol', 'u oba pol.', probToOdd(prob_half * prob_half));
+                        createBet(playerName, 'daje gol', 'u 1. pol.', probToOdd(prob_p1));
+                        createBet(playerName, 'daje gol', 'u 2. pol.', probToOdd(prob_p2));
+                        createBet(playerName, 'daje gol', 'u oba pol.', probToOdd(prob_both_halves));
 
                         if (event && event.lambdaHome && event.lambdaAway) {
                             const teamSide = card.dataset.teamSide;
