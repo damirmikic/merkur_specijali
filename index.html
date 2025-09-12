@@ -1307,14 +1307,12 @@
                      goalscorerSelections.forEach(selection => {
                         if (selection.status === 'SELECTION_ENABLED') {
                             const playerName = parsePlayerNameFromOutcome(selection.outcome);
-                            const playerInfo = Object.values(event.players || {}).find(p => p.name === playerName);
                             let teamSide = 'unknown';
-                            if (playerInfo && playerInfo.team) {
-                                if (playerInfo.team === event.home.name) {
-                                    teamSide = 'home';
-                                } else if (playerInfo.team === event.away.name) {
-                                    teamSide = 'away';
-                                }
+                            const outcome_parts = selection.outcome.split('=');
+                            if (outcome_parts.length > 1 && outcome_parts[1].startsWith('home-')) {
+                                teamSide = 'home';
+                            } else if (outcome_parts.length > 1 && outcome_parts[1].startsWith('away-')) {
+                                teamSide = 'away';
                             }
                             availableApiPlayers.push({ name: playerName, goalscorerOdd: selection.price, teamSide: teamSide });
                         }
