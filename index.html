@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Odds Generator | Modern UI</title>
+    <title>Odds Generator</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="injury-module.js"></script>
     <script src="lineup-module.js"></script>
@@ -223,7 +223,6 @@
 
     <div class="main-container max-w-7xl mx-auto neumorphic-outset">
         
-        <!-- Header -->
         <header class="glass-card rounded-xl p-4 mb-8 flex items-center justify-between">
              <div class="flex items-center gap-4">
                 <div class="w-12 h-12 flex items-center justify-center neumorphic-outset rounded-full">
@@ -243,7 +242,6 @@
              </div>
         </header>
         
-        <!-- Main Content -->
         <main>
             <section id="api-section" class="section-card mb-8">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6 items-end">
@@ -375,9 +373,11 @@
 
             <div id="preview-section" class="hidden section-card" aria-live="polite">
                 <h2 class="text-2xl font-bold text-text-color-dark mb-6 text-center">Pregled Generisanih Kvota</h2>
-                 <div class="glass-card rounded-lg p-3 flex flex-wrap items-center justify-between gap-4 mb-4">
-                    <div class="input-group !mb-0"><input type="text" id="csv-match-name" placeholder="MATCH_NAME" class="!py-2 !text-sm" aria-label="Naziv meča za CSV"></div>
-                    <div class="input-group !mb-0"><input type="text" id="csv-league-name" placeholder="LEAGUE_NAME" class="!py-2 !text-sm" aria-label="Naziv lige za CSV"></div>
+                 <div class="glass-card rounded-lg p-3 grid grid-cols-2 md:grid-cols-4 items-center justify-between gap-4 mb-4">
+                    <div class="input-group !mb-0 col-span-2 md:col-span-1"><input type="text" id="csv-match-name" placeholder="MATCH_NAME" class="!py-2 !text-sm" aria-label="Naziv meča za CSV"></div>
+                    <div class="input-group !mb-0 col-span-2 md:col-span-1"><input type="text" id="csv-league-name" placeholder="LEAGUE_NAME" class="!py-2 !text-sm" aria-label="Naziv lige za CSV"></div>
+                    <div class="input-group !mb-0"><input type="text" id="csv-kickoff-date" class="!py-2 !text-sm" readonly aria-label="Datum meča za CSV"></div>
+                    <div class="input-group !mb-0"><input type="text" id="csv-kickoff-time" class="!py-2 !text-sm" readonly aria-label="Vreme meča za CSV"></div>
                  </div>
                 <div class="overflow-x-auto">
                     <table class="min-w-full">
@@ -404,7 +404,6 @@
         </main>
     </div>
 
-    <!-- SCRIPT - ALL FUNCTIONALITY REMAINS -->
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             const $ = (selector) => document.querySelector(selector);
@@ -559,7 +558,7 @@
                     updateTeamSelectFromManual();
                 } else {
                     apiInputs.classList.remove('hidden');
-                    manualInputs.add('hidden');
+                    manualInputs.classList.add('hidden');
                     manualEntryBtnText.textContent = 'Ručni Unos';
                     if (!eventSelect.value) {
                         matchDetailsSection.classList.add('hidden');
@@ -887,13 +886,20 @@
                     card.querySelectorAll('.player-base-odd').forEach(input => baseOdds[input.dataset.oddType] = parseFloat(input.value) || 0);
                     
                     if (baseOdds['daje-gol'] > 0) {
-                        const playerLambda = getLambdaFromProb(oddToProb(baseOdds['daje-gol']));
-                        const p_poisson = [poissonPMF(playerLambda, 0), poissonPMF(playerLambda, 1), poissonPMF(playerLambda, 2)];
+                        const prob_goal = oddToProb(baseOdds['daje-gol']);
+                        const prob_no_goal = 1 - prob_goal;
+                        const prob_half = 1 - Math.sqrt(prob_no_goal);
                         
                         createBet(playerName, 'daje', 'gol', baseOdds['daje-gol'], false);
                         
+                        const playerLambda = getLambdaFromProb(prob_goal);
+                        const p_poisson = [poissonPMF(playerLambda, 0), poissonPMF(playerLambda, 1), poissonPMF(playerLambda, 2)];
                         const prob_2plus = 1 - p_poisson[0] - p_poisson[1];
                         createBet(playerName, 'daje', '2+ golova', probToOdd(prob_2plus), false);
+                        
+                        createBet(playerName, 'daje gol', 'u 1. pol.', probToOdd(prob_half));
+                        createBet(playerName, 'daje gol', 'u 2. pol.', probToOdd(prob_half));
+                        createBet(playerName, 'daje gol', 'u oba pol.', probToOdd(prob_half * prob_half));
 
                         if (event && event.lambdaHome && event.lambdaAway) {
                             const teamSide = card.dataset.teamSide;
@@ -1024,6 +1030,11 @@
                     $('#csv-league-name').value = event ? `${event.home.name} vs ${event.away.name}` : 'Izabrani Meč';
                     $('#csv-league-name').placeholder = 'LEAGUE_NAME (Ime Meča)';
                 }
+                
+                // Update date and time fields
+                $('#csv-kickoff-date').value = $('#kickoff-date').value;
+                $('#csv-kickoff-time').value = $('#kickoff-time').value;
+
 
                 data.sort((a,b) => a.player.localeCompare(b.player) || (a.market2+a.market3).localeCompare(b.market2+b.market3))
                     .forEach((item, index) => {
@@ -1445,4 +1456,3 @@
     </script>
 </body>
 </html>
-
