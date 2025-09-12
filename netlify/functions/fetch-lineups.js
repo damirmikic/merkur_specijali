@@ -66,31 +66,28 @@ exports.handler = async (event, context) => {
                     const strongText = $$(strongEl).text().trim();
                     if (strongText.includes('possible starting lineup:')) {
                         const teamName = strongText.replace('possible starting lineup:', '').trim();
-                        
-                        const parentEl = $$(strongEl).parent();
                         let lineupText = null;
 
-                        // Strategy 1: Check text within the same parent element, removing the heading
-                        let potentialLineup = parentEl.text().replace(strongText, '').trim();
-                        
-                        // Clean up potential starting characters like ':' or '-'
-                        if (potentialLineup) {
-                            potentialLineup = potentialLineup.replace(/^[:\-\s]+/, '').trim();
-                        }
+                        // Start searching from the element containing the <strong> tag
+                        let currentElement = $$(strongEl).parent(); 
 
-                        if (potentialLineup && (potentialLineup.includes(';') || potentialLineup.split(',').length > 5)) {
-                            lineupText = potentialLineup;
-                        } else {
-                            // Strategy 2: If not in the same element, check the next sibling paragraph
-                            let nextP = parentEl.next('p');
-                            if (nextP.length) {
-                                let nextPText = nextP.text().trim();
-                                 if (nextPText && (nextPText.includes(';') || nextPText.split(',').length > 5)) {
-                                    lineupText = nextPText;
-                                }
+                        // Iterate through the next sibling elements to find the lineup
+                        while (currentElement.next().length > 0 && !lineupText) {
+                            currentElement = currentElement.next();
+                            const elementText = currentElement.text().trim();
+
+                            // If we find the next team's lineup header, stop searching for the current team.
+                            if (currentElement.find('strong').text().includes('possible starting lineup:')) {
+                                break;
+                            }
+
+                            // Check if the text of the current element looks like a lineup
+                            if (elementText && (elementText.includes(';') || elementText.split(',').length > 5)) {
+                                lineupText = elementText.replace(/^"/, '').replace(/"$/, '').trim(); // Clean quotes
+                                break; // Found the lineup, exit the loop
                             }
                         }
-
+                        
                         if (lineupText) {
                              if (!allLineupsData.some(item => item.team === teamName && item.source_url === articleResponse.url)) {
                                 console.log(`   -> Found Lineup for "${teamName}" in ${articleResponse.url}`);
