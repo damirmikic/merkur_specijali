@@ -67,20 +67,28 @@ exports.handler = async (event, context) => {
                     if (strongText.includes('possible starting lineup:')) {
                         const teamName = strongText.replace('possible starting lineup:', '').trim();
                         
-                        let parentElement = $$(strongEl).parent();
+                        const parentEl = $$(strongEl).parent();
                         let lineupText = null;
 
-                        while (parentElement.length && !lineupText) {
-                            let nextP = parentElement.nextAll('p').first();
-                            while(nextP.length) {
-                                let text = nextP.text().trim();
-                                if (text && (text.includes(';') || text.split(',').length > 5)) {
-                                    lineupText = text;
-                                    break;
+                        // Strategy 1: Check text within the same parent element, removing the heading
+                        let potentialLineup = parentEl.text().replace(strongText, '').trim();
+                        
+                        // Clean up potential starting characters like ':' or '-'
+                        if (potentialLineup) {
+                            potentialLineup = potentialLineup.replace(/^[:\-\s]+/, '').trim();
+                        }
+
+                        if (potentialLineup && (potentialLineup.includes(';') || potentialLineup.split(',').length > 5)) {
+                            lineupText = potentialLineup;
+                        } else {
+                            // Strategy 2: If not in the same element, check the next sibling paragraph
+                            let nextP = parentEl.next('p');
+                            if (nextP.length) {
+                                let nextPText = nextP.text().trim();
+                                 if (nextPText && (nextPText.includes(';') || nextPText.split(',').length > 5)) {
+                                    lineupText = nextPText;
                                 }
-                                nextP = nextP.next('p');
                             }
-                            parentElement = parentElement.parent();
                         }
 
                         if (lineupText) {
