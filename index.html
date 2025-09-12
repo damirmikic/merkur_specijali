@@ -1216,9 +1216,9 @@
                     for (const playerName in playerData) {
                         csvContent += [`LEAGUE_NAME:${playerName}`, '', '', '', '', '', '', '', '', '', '', '', ''].join(',') + '\r\n';
                         playerData[playerName].forEach(item => {
-                            const domacin = playerName.replace(/"/g, '""');
-                            const gost = (item.market2 + ' ' + item.market3).trim().replace(/"/g, '""');
-                            const rowData = [ date, time, '', `"${domacin}"`, `"${gost}"`, item.odd, '', '', '', '', '', '', '' ];
+                            const domacin = `"${playerName.replace(/"/g, '""')}"`;
+                            const gost = `"${(item.market2 + ' ' + item.market3).trim().replace(/"/g, '""')}"`;
+                            const rowData = [ date, time, '', domacin, gost, item.odd, '', '', '', '', '', '', '' ];
                             csvContent += rowData.join(',') + '\r\n';
                         });
                         csvContent += '\n';
