@@ -888,25 +888,39 @@
                     if (baseOdds['daje-gol'] > 0) {
                         const playerLambda = getLambdaFromProb(oddToProb(baseOdds['daje-gol']));
                         
-                        // Proračun za poluvremena po novoj logici
+                        // --- Osnovne igre za golove ---
+                        createBet(playerName, 'daje', 'gol', baseOdds['daje-gol'], false);
+                        
+                        const p_poisson = [poissonPMF(playerLambda, 0), poissonPMF(playerLambda, 1)];
+                        const prob_2plus = 1 - p_poisson[0] - p_poisson[1];
+                        createBet(playerName, 'daje', '2+ golova', probToOdd(prob_2plus), false);
+
+                        // --- Izračunavanje kvota po poluvremenima (NOVA LOGIKA) ---
                         const lambda_p1 = playerLambda * 0.44;
                         const lambda_p2 = playerLambda * 0.56;
+                        
                         const prob_p1 = 1 - poissonPMF(lambda_p1, 0);
                         const prob_p2 = 1 - poissonPMF(lambda_p2, 0);
 
-                        // Proračun za gol u oba poluvremena sa smanjenjem od 20%
-                        const prob_both_halves = (prob_p1 * prob_p2) * 0.8;
+                        // Prvo izračunavamo sirove kvote
+                        const raw_odd_p1 = probToOdd(prob_p1);
+                        const raw_odd_p2 = probToOdd(prob_p2);
 
-                        createBet(playerName, 'daje', 'gol', baseOdds['daje-gol'], false);
+                        // Zatim na njih dodajemo maržu da dobijemo finalne kvote za svako poluvreme
+                        const final_odd_p1 = applyMarginToOdd(raw_odd_p1, margin);
+                        const final_odd_p2 = applyMarginToOdd(raw_odd_p2, margin);
                         
-                        const p_poisson = [poissonPMF(playerLambda, 0), poissonPMF(playerLambda, 1), poissonPMF(playerLambda, 2)];
-                        const prob_2plus = 1 - p_poisson[0] - p_poisson[1];
-                        createBet(playerName, 'daje', '2+ golova', probToOdd(prob_2plus), false);
-                        
-                        createBet(playerName, 'daje gol', 'u 1. pol.', probToOdd(prob_p1));
-                        createBet(playerName, 'daje gol', 'u 2. pol.', probToOdd(prob_p2));
-                        createBet(playerName, 'daje gol', 'u oba pol.', probToOdd(prob_both_halves));
+                        // Kreiramo opklade za pojedinačna poluvremena sa već uračunatom maržom
+                        createBet(playerName, 'daje gol', 'u 1. pol.', final_odd_p1, false);
+                        createBet(playerName, 'daje gol', 'u 2. pol.', final_odd_p2, false);
 
+                        // Kvotu za "daje gol u oba pol." dobijamo množenjem finalnih kvota
+                        if(final_odd_p1 && final_odd_p2) {
+                            const final_odd_both = final_odd_p1 * final_odd_p2;
+                            createBet(playerName, 'daje gol', 'u oba pol.', final_odd_both, false);
+                        }
+
+                        // --- Ostale korelacije ---
                         if (event && event.lambdaHome && event.lambdaAway) {
                             const teamSide = card.dataset.teamSide;
                             if(teamSide) {
