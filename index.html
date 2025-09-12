@@ -559,7 +559,7 @@
                     updateTeamSelectFromManual();
                 } else {
                     apiInputs.classList.remove('hidden');
-                    manualInputs.classList.add('hidden');
+                    manualInputs.add('hidden');
                     manualEntryBtnText.textContent = 'Ručni Unos';
                     if (!eventSelect.value) {
                         matchDetailsSection.classList.add('hidden');
@@ -665,6 +665,19 @@
                 if (firstHyphenIndex === -1) return 'Unknown Player';
                 namePart = namePart.substring(firstHyphenIndex + 1);
                 return namePart.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+            };
+
+            const createShotLineHTML = (threshold, odd, isCustom) => {
+                const counter = Date.now() + Math.random(); // Unique ID for labels
+                return `
+                    <div class="shot-line flex items-center gap-2" ${isCustom ? '' : `data-threshold="${threshold}"`}>
+                        <label for="shots-threshold-${counter}" class="text-sm font-medium w-24">Šuteva ${isCustom ? '' : threshold+'+'}:</label>
+                        ${isCustom ? `<input type="number" id="shots-threshold-${counter}" class="shots-threshold w-20 neumorphic-inset !py-1 px-2" placeholder="Prag">` : `<input type="hidden" class="shots-threshold" value="${threshold}">`}
+                        <input type="number" class="shot-odd-input flex-grow neumorphic-inset !py-1 px-2" step="0.01" value="${odd || ''}" placeholder="Kvota">
+                        <button type="button" class="calc-shot-btn action-btn secondary !p-2 !rounded-md" title="Izračunaj kvotu">&#9924;</button>
+                        <button type="button" class="remove-shot-line-btn text-slate-400 hover:text-red-600 transition-colors" title="Ukloni liniju">&times;</button>
+                    </div>
+                `;
             };
 
             const createPlayerCardHTML = (counter, playerData) => `
@@ -1089,7 +1102,9 @@
                     for (const playerName in playerData) {
                         csvContent += [`LEAGUE_NAME:${playerName}`, '', '', '', '', '', '', '', '', '', '', '', ''].join(',') + '\r\n';
                         playerData[playerName].forEach(item => {
-                            const rowData = [ date, time, '', item.market2, item.market3, item.odd, '', '', '', '', '', '', '' ];
+                            const domacin = `"${playerName.replace(/"/g, '""')}"`;
+                            const gost = `"${(item.market2 + ' ' + item.market3).trim().replace(/"/g, '""')}"`;
+                            const rowData = [ date, time, '', domacin, gost, item.odd, '', '', '', '', '', '', '' ];
                             csvContent += rowData.join(',') + '\r\n';
                         });
                         csvContent += '\n';
