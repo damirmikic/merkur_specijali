@@ -815,6 +815,7 @@
                 playerCard.className = 'player-card';
                 playerCard.id = cardId;
                 playerCard.dataset.teamSide = playerData.teamSide || '';
+                playerCard.dataset.teamName = playerData.teamName || '';
                 playerCard.innerHTML = createPlayerCardHTML(playerCounter, playerData);
                  return playerCard;
             };
@@ -1006,12 +1007,12 @@
                         // --- Ostale korelacije ---
                         if (event && event.lambdaHome && event.lambdaAway) {
                             const teamSide = card.dataset.teamSide;
-                            if(teamSide) {
+                            const teamName = card.dataset.teamName;
+                            if(teamSide && teamName) {
                                 const teamLambda = teamSide === 'home' ? event.lambdaHome : event.lambdaAway;
                                 const opponentLambda = teamSide === 'home' ? event.lambdaAway : event.lambdaHome;
                                 const pScore = oddToProb(baseOdds['daje-gol']);
                                 const probScoresAndWins = scoreAndWin(teamLambda, opponentLambda, pScore, 15);
-                                const teamName = teamSide === 'home' ? event.home.name : event.away.name;
                                 createBet(playerName, 'daje gol i', `${teamName} pobedjuje`, probToOdd(probScoresAndWins), true);
                             }
                         }
@@ -1356,6 +1357,7 @@
                     option.textContent = `${player.name} (${player.goalscorerOdd})`;
                     option.dataset.odd = player.goalscorerOdd;
                     option.dataset.teamSide = player.teamSide;
+                    option.dataset.teamName = player.teamName;
                     apiPlayerSelect.appendChild(option);
                 });
                 apiPlayerAdder.classList.remove('hidden');
@@ -1391,13 +1393,16 @@
                         if (selection.status === 'SELECTION_ENABLED') {
                             const playerName = parsePlayerNameFromOutcome(selection.outcome);
                             let teamSide = 'unknown';
+                            let teamName = '';
                             const outcome_parts = selection.outcome.split('=');
                             if (outcome_parts.length > 1 && outcome_parts[1].startsWith('home-')) {
                                 teamSide = 'home';
+                                teamName = event.home.name;
                             } else if (outcome_parts.length > 1 && outcome_parts[1].startsWith('away-')) {
                                 teamSide = 'away';
+                                teamName = event.away.name;
                             }
-                            availableApiPlayers.push({ name: playerName, goalscorerOdd: selection.price, teamSide: teamSide });
+                            availableApiPlayers.push({ name: playerName, goalscorerOdd: selection.price, teamSide: teamSide, teamName: teamName });
                         }
                      });
                 }
@@ -1500,7 +1505,12 @@
                 }
                 const existingPlayers = Array.from(document.querySelectorAll('.player-name-search')).map(input => input.value);
                 if (existingPlayers.includes(playerName)) { alert(`Igrač ${playerName} je već dodat.`); return; }
-                const playerCard = addPlayer({ name: playerName, goalscorerOdd: selectedOption.dataset.odd, teamSide: selectedOption.dataset.teamSide });
+                const playerCard = addPlayer({ 
+                    name: playerName, 
+                    goalscorerOdd: selectedOption.dataset.odd, 
+                    teamSide: selectedOption.dataset.teamSide,
+                    teamName: selectedOption.dataset.teamName
+                });
                 playersContainer.appendChild(playerCard);
                 const fbrefPlayer = allFbrefStats.find(p => p.Player.toLowerCase() === playerName.toLowerCase());
                 if (fbrefPlayer) selectPlayerFromDb(playerCard.querySelector('.player-name-search'), fbrefPlayer);
