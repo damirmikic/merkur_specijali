@@ -73,7 +73,7 @@
   "Hoffenheim": ["Hoffenheim"],
   "Werder Bremen": ["Werder Bremen", "Werder"],
   "Bochum": ["Bochum"],
-  "Augsburg": ["Augsburg"],
+  "Augsburg": ["Augsburg", "FC Augsburg"],
   "Stuttgart": ["Stuttgart"],
   "Hertha Berlin": ["Hertha BSC", "Hertha"],
   "Schalke 04": ["Schalke 04", "Schalke"],
@@ -97,5 +97,8 @@
   "Auxerre": ["Auxerre"],
   "Ajaccio": ["AC Ajaccio"],
   "Troyes": ["Troyes"],
-  "Angers": ["Angers"]
+  "Angers": ["Angers"],
+  "FC St. Pauli": ["St Pauli", "St. Pauli"],
+  "AS Roma": ["Roma"]
+    
 }
