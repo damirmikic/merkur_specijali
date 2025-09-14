@@ -43,22 +43,23 @@
   "Lazio": ["Lazio"],
   "Inter Milan": ["Inter", "Internazionale"],
   "AC Milan": ["Milan"],
-  "Atalanta": ["Atalanta"],
+  "Atalanta": ["Atalanta", "Atalanta BC"],
   "AS Roma": ["Roma"],
   "Juventus": ["Juventus"],
-  "Bologna": ["Bologna"],
+  "Bologna": ["Bologna", "Bologna FC"],
   "Fiorentina": ["Fiorentina"],
-  "Torino": ["Torino"],
+  "Torino": ["Torino", "Torino FC"],
   "Monza": ["Monza"],
-  "Udinese": ["Udinese"],
+  "Udinese": ["Udinese", "Udinese Calcio"],
   "Sassuolo": ["Sassuolo"],
   "Empoli": ["Empoli"],
   "Salernitana": ["Salernitana"],
-  "Lecce": ["Lecce"],
+  "Lecce": ["Lecce", "US Lecce"],
   "Hellas Verona": ["Hellas Verona", "Verona"],
   "Spezia": ["Spezia"],
   "Cremonese": ["Cremonese"],
   "Sampdoria": ["Sampdoria"],
+  "Pisa": ["Pisa SC"],
   "Bayern Munich": ["Bayern", "Bayern Munich", "Bayern Munchen"],
   "Borussia Dortmund": ["Dortmund"],
   "RB Leipzig": ["RB Leipzig"],
@@ -98,7 +99,7 @@
   "Ajaccio": ["AC Ajaccio"],
   "Troyes": ["Troyes"],
   "Angers": ["Angers"],
-  "FC St. Pauli": ["St Pauli", "St. Pauli"],
-  "AS Roma": ["Roma"]
+  "FC St. Pauli": ["St Pauli", "St. Pauli"]
+  
     
 }
