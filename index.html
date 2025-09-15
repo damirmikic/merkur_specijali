@@ -1071,23 +1071,31 @@
             const calculateSpecialOdds = () => {
                 const results = [];
                 const margin = parseFloat($('#bookmaker-margin').value) || 0;
-                const goalsLambda = parseFloat($('#special-goals-lambda').value) || 0;
-                const cornersLambda = parseFloat($('#special-corners-lambda').value) || 0;
+
+                const lambdaHome = parseFloat($('#special-goals-lambda-home').value) || 0;
+                const lambdaAway = parseFloat($('#special-goals-lambda-away').value) || 0;
+                const goalsLambda = lambdaHome + lambdaAway;
+                
+                const cornersLambdaHome = parseFloat($('#special-corners-lambda-home').value) || 0;
+                const cornersLambdaAway = parseFloat($('#special-corners-lambda-away').value) || 0;
+                const cornersLambda = cornersLambdaHome + cornersLambdaAway;
+
                 const cardsLambda = parseFloat($('#special-cards-lambda').value) || 0;
-                const sotLambda = parseFloat($('#special-sot-lambda').value) || 0;
                 const penaltyOdd = parseFloat($('#special-penalty-odd').value) || 0;
                 const redCardOdd = parseFloat($('#special-red-card-odd').value) || 0;
+                const p_gg_input = (parseFloat($('#special-gg-prob').value) / 100);
+
 
                 const eventId = eventSelect.value;
                 const event = apiEvents.find(e => e.id == eventId);
 
-                if (!event || goalsLambda <= 0 || cornersLambda <= 0 || cardsLambda <= 0) {
+                if ((!event && !isManualMode) || goalsLambda <= 0 || cornersLambda <= 0 || cardsLambda <= 0) {
                     alert("Molimo Vas izaberite meč i proverite da li su unete validne očekivane vrednosti.");
                     return [];
                 }
                 
-                const homeTeam = event.home.name;
-                const awayTeam = event.away.name;
+                const homeTeam = isManualMode ? $('#manual-home-team').value || 'Tim 1' : event.home.name;
+                const awayTeam = isManualMode ? $('#manual-away-team').value || 'Tim 2' : event.away.name;
 
                 const createSpecialBet = (m2, m3, prob) => {
                     if (prob <= 0 || prob >= 1) return;
@@ -1095,22 +1103,70 @@
                     const finalOdd = applyMarginToOdd(rawOdd, margin);
                     results.push({ player: 'Specijal', market2: m2, market3: m3, odd: formatOdd(finalOdd) });
                 };
+
+                // Goal Probabilities
+                const p_home_0 = poissonPMF(lambdaHome, 0);
+                const p_away_0 = poissonPMF(lambdaAway, 0);
+                const p_gg = p_gg_input || (1 - p_home_0 - p_away_0 + (p_home_0 * p_away_0));
+                const p_ng = 1 - p_gg;
+
+                const p_2plus_goals = probOver(goalsLambda, 1);
+                const p_3plus_goals = probOver(goalsLambda, 2);
+                const p_4plus_goals = probOver(goalsLambda, 3);
                 
-                // Probabilities
-                const p_gg = (parseFloat($('#special-gg-prob').value) / 100) || (1 - Math.exp(-goalsLambda * 0.35));
-                const p_3plus_goals = event.prob_3plus_goals || probOver(goalsLambda, 2);
-                const p_4plus_cards = probOver(cardsLambda, 3);
-                const p_1plus_card_team = probOver(cardsLambda / 2, 0);
+                const p_home_2plus = probOver(lambdaHome, 1);
+                const p_away_2plus = probOver(lambdaAway, 1);
+
+                // Corner Probabilities
                 const p_9plus_corners = probOver(cornersLambda, 8);
-                const p_10plus_corners = event.prob_10plus_corners || probOver(cornersLambda, 9);
-                const p_11plus_sot = probOver(sotLambda, 10);
-                const p_penal = oddToProb(penaltyOdd);
+                const p_10plus_corners = probOver(cornersLambda, 9);
+                const p_11plus_corners = probOver(cornersLambda, 10);
+
+                // Card Probabilities
+                const p_4plus_cards = probOver(cardsLambda, 3);
+                const p_5plus_cards = probOver(cardsLambda, 4);
+                const p_1plus_card_p1 = probOver(cardsLambda / 2.2, 0);
                 
-                createSpecialBet('Oba tima 1+ kartona', 'i GG', (p_1plus_card_team ** 2) * p_gg);
-                createSpecialBet('11+ suteva u okvir', 'i GG', calculateCorrelatedProbability(p_11plus_sot, p_gg, 1.2));
-                createSpecialBet('3+ golova', 'i 10+ kornera', p_3plus_goals * p_10plus_corners);
-                createSpecialBet('3+ golova', 'i 4+ kartona', p_3plus_goals * p_4plus_cards);
-                createSpecialBet('10+ kornera', 'i GG', p_10plus_corners * p_gg);
+                // Penalty & Red Card
+                const p_penal = oddToProb(penaltyOdd);
+                const p_red_card = oddToProb(redCardOdd);
+
+                // --- Single Bets ---
+                createSpecialBet('Ukupno golova', '2+', probToOdd(p_2plus_goals));
+                createSpecialBet('Ukupno golova', '3+', probToOdd(p_3plus_goals));
+                createSpecialBet('Ukupno golova', '4+', probToOdd(p_4plus_goals));
+                createSpecialBet('Oba tima daju gol', 'GG', probToOdd(p_gg));
+                createSpecialBet(homeTeam, 'daje 2+ gola', probToOdd(p_home_2plus));
+                createSpecialBet(awayTeam, 'daje 2+ gola', probToOdd(p_away_2plus));
+                createSpecialBet(homeTeam, 'ne prima gol', probToOdd(p_away_0));
+                createSpecialBet(awayTeam, 'ne prima gol', probToOdd(p_home_0));
+
+                // --- Combined Goal Bets ---
+                createSpecialBet('GG', 'i 3+', probToOdd(calculateCorrelatedProbability(p_gg, p_3plus_goals, 1.1)));
+                createSpecialBet('GG', 'i 4+', probToOdd(calculateCorrelatedProbability(p_gg, p_4plus_goals, 1.15)));
+                createSpecialBet('Jedan od timova', 'ne daje gol (NG)', probToOdd(p_ng));
+
+                // --- Card & Corner Bets ---
+                createSpecialBet('Ukupno kornera', '9+', probToOdd(p_9plus_corners));
+                createSpecialBet('Ukupno kornera', '10+', probToOdd(p_10plus_corners));
+                createSpecialBet('Ukupno kornera', '11+', probToOdd(p_11plus_corners));
+                createSpecialBet('Ukupno kartona', '4+', probToOdd(p_4plus_cards));
+                createSpecialBet('Ukupno kartona', '5+', probToOdd(p_5plus_cards));
+                
+                // --- Complex Correlations ---
+                createSpecialBet('3+ golova', 'i 10+ kornera', probToOdd(p_3plus_goals * p_10plus_corners));
+                createSpecialBet('3+ golova', 'i 4+ kartona', probToOdd(p_3plus_goals * p_4plus_cards));
+                createSpecialBet('10+ kornera', 'i GG', probToOdd(p_10plus_corners * p_gg));
+                createSpecialBet('1+ karton u 1. pol', 'i 1+ gol u 2. pol', probToOdd(calculateCorrelatedProbability(p_1plus_card_p1, probOver(goalsLambda/1.8, 0), 1.05)));
+
+                // --- Penalty & Red Card Bets ---
+                if (p_penal > 0) {
+                    createSpecialBet('Biće penal', 'na meču', probToOdd(p_penal));
+                    createSpecialBet('Biće penal', 'i GG', probToOdd(calculateCorrelatedProbability(p_penal, p_gg, 1.2)));
+                }
+                if (p_red_card > 0) {
+                    createSpecialBet('Biće crveni karton', 'na meču', probToOdd(p_red_card));
+                }
                 
                 return results;
             };
@@ -1469,7 +1525,7 @@
                 if (selectedOption.value !== 'all') {
                     $('#match-name').value = teamName;
                 } else {
-                    const event = apiEvents.find(e => e.id == eventSelect.value);
+                    const event = apiEvents.find(e => e.id == eventId);
                     if (event) {
                         $('#match-name').value = `${event.home.name} vs ${event.away.name}`;
                     }
@@ -1570,3 +1626,5 @@
     </script>
 </body>
 </html>
+
+
