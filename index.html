@@ -1072,13 +1072,25 @@
                 const results = [];
                 const margin = parseFloat($('#bookmaker-margin').value) || 0;
 
-                const lambdaHome = parseFloat($('#special-goals-lambda-home').value) || 0;
-                const lambdaAway = parseFloat($('#special-goals-lambda-away').value) || 0;
-                const goalsLambda = lambdaHome + lambdaAway;
-                
-                const cornersLambdaHome = parseFloat($('#special-corners-lambda-home').value) || 0;
-                const cornersLambdaAway = parseFloat($('#special-corners-lambda-away').value) || 0;
-                const cornersLambda = cornersLambdaHome + cornersLambdaAway;
+                let lambdaHome, lambdaAway, goalsLambda, cornersLambdaHome, cornersLambdaAway, cornersLambda;
+
+                if (isManualMode) {
+                    goalsLambda = parseFloat($('#special-goals-lambda').value) || 0;
+                    lambdaHome = goalsLambda * 0.55; // Simple split for manual mode
+                    lambdaAway = goalsLambda * 0.45;
+                    
+                    cornersLambda = parseFloat($('#special-corners-lambda').value) || 0;
+                    cornersLambdaHome = cornersLambda * 0.55; // Simple split
+                    cornersLambdaAway = cornersLambda * 0.45;
+                } else {
+                    lambdaHome = parseFloat($('#special-goals-lambda-home').value) || 0;
+                    lambdaAway = parseFloat($('#special-goals-lambda-away').value) || 0;
+                    goalsLambda = lambdaHome + lambdaAway;
+                    
+                    cornersLambdaHome = parseFloat($('#special-corners-lambda-home').value) || 0;
+                    cornersLambdaAway = parseFloat($('#special-corners-lambda-away').value) || 0;
+                    cornersLambda = cornersLambdaHome + cornersLambdaAway;
+                }
 
                 const cardsLambda = parseFloat($('#special-cards-lambda').value) || 0;
                 const penaltyOdd = parseFloat($('#special-penalty-odd').value) || 0;
@@ -1626,5 +1638,6 @@
     </script>
 </body>
 </html>
+
 
 
